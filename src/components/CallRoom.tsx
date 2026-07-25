@@ -225,21 +225,21 @@ export function CallRoom({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center justify-between border-b border-line bg-ink-soft px-4 py-3 md:px-6">
+      <header className="flex shrink-0 items-center justify-between border-b border-line/50 px-6 py-4">
         <button type="button" onClick={onLeaveStudio} className="text-left">
           <Brand />
         </button>
         <div className="hidden text-center sm:block">
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-mist">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-mist mb-1">
             {session.mode === 'live' ? 'Live with' : 'Demo with'}
           </p>
-          <p className="font-display text-lg text-parchment" style={{ fontFamily: 'var(--font-display)' }}>{character.name}</p>
+          <p className="font-display text-xl text-parchment" style={{ fontFamily: 'var(--font-display)' }}>{character.name}</p>
         </div>
         {session.mode === 'live' && !audioUnlocked ? (
           <button
             type="button"
             onClick={() => void unlockAudio()}
-            className="rounded-sm border border-line px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-mist hover:bg-ink-muted hover:text-parchment"
+            className="rounded-full border border-line px-4 py-1.5 text-[11px] font-medium uppercase tracking-wider text-mist transition hover:bg-ink-soft hover:text-parchment"
             title="Browsers block audio until you interact with the page"
           >
             Enable voice
@@ -248,7 +248,7 @@ export function CallRoom({
         <button
           type="button"
           onClick={() => void finishCall()}
-          className="rounded-sm border border-line bg-ink px-4 py-1.5 text-xs font-medium text-mist transition hover:border-rose/40 hover:text-rose shadow-sm"
+          className="rounded-full px-5 py-2 text-xs font-medium text-mist transition hover:bg-rose/10 hover:text-rose"
         >
           End call
         </button>

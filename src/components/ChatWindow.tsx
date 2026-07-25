@@ -128,11 +128,11 @@ export function ChatWindow({
         ))}
 
         {isTyping && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-sm border border-line bg-ink-soft px-4 py-3">
-              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
-              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
-              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
+          <div className="flex justify-start px-2">
+            <div className="flex items-center gap-1.5 py-3">
+              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist/60" />
+              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist/60" />
+              <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist/60" />
             </div>
           </div>
         )}
@@ -141,20 +141,20 @@ export function ChatWindow({
 
       <form
         onSubmit={submit}
-        className="border-t border-line p-3"
+        className="border-t border-line/50 p-4"
       >
-        <div className="flex items-end gap-2 rounded-md border border-line bg-ink px-2 py-2 shadow-sm focus-within:border-ember focus-within:ring-1 focus-within:ring-ember">
+        <div className="flex items-end gap-2 rounded-full border border-line bg-transparent px-3 py-1.5 focus-within:border-mist focus-within:bg-ink-soft">
           <button
             type="button"
             onClick={toggleMic}
-            className={`mb-0.5 rounded-md p-2 transition ${
+            className={`mb-0.5 rounded-full p-2.5 transition ${
               listening || isRecording
-                ? 'bg-rose/20 text-rose'
+                ? 'bg-rose/10 text-rose'
                 : 'text-mist hover:bg-ink-muted hover:text-parchment'
             }`}
             title={listening || isRecording ? 'Stop speaking' : (isLiveSession ? 'Voice Call' : 'Dictate')}
           >
-            {listening || isRecording ? <Square size={16} /> : <Mic size={16} />}
+            {listening || isRecording ? <Square size={18} /> : <Mic size={18} />}
           </button>
           <textarea
             value={draft}
@@ -168,15 +168,15 @@ export function ChatWindow({
             rows={1}
             placeholder={isRecording ? 'Listening...' : `Message ${character.name}…`}
             disabled={disabled || isRecording}
-            className="custom-scroll max-h-28 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm text-parchment outline-none placeholder:text-mist/50"
+            className="custom-scroll max-h-28 min-h-[44px] flex-1 resize-none bg-transparent py-3 text-base text-parchment outline-none placeholder:text-mist/50"
           />
           <button
             type="submit"
             disabled={!draft.trim() || disabled || isTyping || isRecording}
-            className="mb-0.5 rounded-md bg-ember p-2 text-ink shadow-sm transition enabled:hover:bg-ember-bright disabled:opacity-30"
+            className="mb-0.5 rounded-full bg-parchment p-2.5 text-ink transition enabled:hover:bg-parchment-dim disabled:opacity-30"
             aria-label="Send"
           >
-            <Send size={16} />
+            <Send size={18} />
           </button>
         </div>
       </form>
@@ -193,8 +193,8 @@ function MessageBubble({
 }) {
   if (message.role === 'system') {
     return (
-      <div className="flex justify-center">
-        <p className="max-w-[90%] rounded-sm border border-line bg-ink-soft px-3 py-1 text-center text-[11px] font-medium text-mist">
+      <div className="flex justify-center py-4">
+        <p className="text-center text-[11px] font-medium tracking-wide text-mist uppercase">
           {message.content}
         </p>
       </div>
@@ -203,21 +203,19 @@ function MessageBubble({
 
   const mine = message.role === 'user'
   return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-md border px-4 py-3 text-lg leading-relaxed shadow-sm ${
-          mine
-            ? 'border-ember/30 bg-ink-soft text-parchment'
-            : 'border-line bg-ink text-parchment-dim'
-        }`}
-        style={{ fontFamily: 'var(--font-display)' }}
-      >
+    <div className={`flex flex-col py-2 ${mine ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[85%] px-2`}>
         {!mine && (
-          <p className="mb-2 font-body text-[10px] font-semibold uppercase tracking-wider text-ember">
+          <p className="mb-1 font-body text-[10px] font-semibold uppercase tracking-wider text-mist">
             {message.characterName || character.name}
           </p>
         )}
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <p 
+          className="whitespace-pre-wrap text-[19px] leading-[1.6] text-parchment"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {message.content}
+        </p>
       </div>
     </div>
   )

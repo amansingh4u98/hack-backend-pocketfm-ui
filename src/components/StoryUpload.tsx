@@ -103,16 +103,16 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-8 px-6 py-10 lg:grid-cols-[1fr_1.15fr]">
-        <div className="animate-fade-up space-y-5">
+      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-12 px-6 py-12 lg:grid-cols-[1fr_1.15fr]">
+        <div className="animate-fade-up space-y-8">
           <div>
             <h1
-              className="font-display text-3xl text-parchment md:text-4xl"
+              className="font-display text-4xl text-parchment md:text-5xl"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               Lay the story on the table
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-parchment-dim">
+            <p className="mt-4 text-sm leading-loose text-mist">
               Paste a draft or drop PDF / DOC / TXT. Text is read in the
               browser, then sent to{' '}
               <code className="text-ember font-semibold">POST /actor-context/extract</code>{' '}
@@ -122,14 +122,15 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
           </div>
 
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-mist">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-mist">
               Working title
             </span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. The Last Letter to Elias"
-              className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-sm text-parchment shadow-sm outline-none transition placeholder:text-mist/50 focus:border-ember focus:ring-1 focus:ring-ember"
+              className="w-full border-b border-line bg-transparent py-3 text-lg font-display text-parchment outline-none transition placeholder:text-mist/50 focus:border-ember"
+              style={{ fontFamily: 'var(--font-display)' }}
             />
           </label>
 
@@ -140,10 +141,10 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
-            className={`relative rounded-md border-2 border-dashed p-8 text-center transition ${
+            className={`relative rounded-2xl p-10 text-center transition ${
               dragOver
-                ? 'border-ember bg-ember/10'
-                : 'border-line bg-ink-soft hover:border-ember/40'
+                ? 'bg-ember/5 border-ember/20 border'
+                : 'bg-ink-soft hover:bg-ink-muted/50 border border-transparent'
             }`}
           >
             <input
@@ -163,17 +164,17 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
               </div>
             ) : (
               <>
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-sm bg-ink text-ember border border-line shadow-sm">
-                  <Upload size={20} strokeWidth={1.5} />
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-ember shadow-sm">
+                  <Upload size={22} strokeWidth={1.5} />
                 </div>
-                <p className="text-sm font-medium text-parchment">
+                <p className="font-display text-lg text-parchment">
                   Drop story file here
                 </p>
                 <p className="mt-1 text-xs text-mist">PDF · DOC/DOCX · TXT · MD</p>
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="mt-4 rounded-sm border border-line bg-ink px-4 py-2 text-xs font-medium text-mist transition hover:border-ember/40 hover:text-parchment"
+                  className="mt-6 rounded-full border border-line bg-transparent px-5 py-2.5 text-xs font-medium text-mist transition hover:border-ember hover:text-parchment"
                 >
                   Browse files
                 </button>
@@ -182,11 +183,11 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
           </div>
 
           {fileName && (
-            <div className="flex items-center gap-3 rounded-md border border-line bg-ink-soft px-3 py-2.5 shadow-sm">
-              <FileType size={16} className="text-ember" />
+            <div className="flex items-center gap-4 border-l-2 border-ember bg-ink-soft px-4 py-3">
+              <FileType size={18} className="text-ember" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-parchment">{fileName}</p>
-                <p className="text-[11px] uppercase tracking-wider text-mist">
+                <p className="text-[11px] uppercase tracking-wider text-mist mt-0.5">
                   {source} · {wordCount.toLocaleString()} words
                 </p>
               </div>
@@ -197,33 +198,19 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
                   setSource('paste')
                   setText('')
                 }}
-                className="rounded-sm p-1.5 text-mist hover:bg-ink-muted hover:text-parchment"
+                className="rounded-full p-2 text-mist hover:bg-ink-muted hover:text-parchment"
                 aria-label="Clear file"
               >
-                <X size={14} />
+                <X size={16} />
               </button>
             </div>
           )}
-
-          <div className="space-y-2 rounded-md border border-line bg-ink-muted p-4 text-xs leading-relaxed text-mist">
-            <p className="font-semibold text-parchment">Backend pipeline</p>
-            <ol className="list-decimal space-y-1 pl-4 font-mono text-[11px] text-parchment-dim">
-              <li>POST /actor-context/extract</li>
-              <li>cast ← extraction.characters</li>
-              <li>POST /actor-context/bootstrap → live token</li>
-              <li>WS …/live?token=…</li>
-            </ol>
-            <p className="text-[11px] text-mist">
-              Requires backend OpenAI keys for real extraction; Mongo +{' '}
-              <code className="text-ember">LIVE_TOKEN_SECRET</code> for calls.
-            </p>
-          </div>
         </div>
 
         <div className="animate-fade-up flex flex-col" style={{ animationDelay: '0.08s' }}>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-mist">
-              <FileText size={14} />
+              <FileText size={16} />
               Story text
             </span>
             <span className="text-xs font-medium text-mist">
@@ -240,22 +227,22 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
 
 Example:
 Mira Voss stood on the platform long after the train had gone. She had hidden the letter in the lining of Elias's coat — the one truth that would have kept him home. Rain stitched the iron rails silver. "He'll never know," she whispered, and hated how much she needed that to be true.`}
-            className="custom-scroll min-h-[360px] flex-1 resize-none rounded-md border border-line bg-ink-soft p-5 font-display text-lg leading-relaxed text-parchment shadow-inner outline-none transition placeholder:text-mist/40 focus:border-ember focus:ring-1 focus:ring-ember"
+            className="custom-scroll min-h-[360px] flex-1 resize-none rounded-2xl bg-ink-soft p-8 font-display text-lg leading-loose text-parchment outline-none transition placeholder:text-mist/40 focus:bg-ink-soft/70"
             style={{ fontFamily: 'var(--font-display)' }}
           />
 
           {error && (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2.5 text-sm font-medium text-rose">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-rose/10 px-4 py-3 text-sm font-medium text-rose">
+              <AlertCircle size={18} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-8 flex items-center justify-between gap-3 border-t border-line/50 pt-8">
             <button
               type="button"
               onClick={onBack}
-              className="rounded-md px-4 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
+              className="rounded-full px-5 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
             >
               Back
             </button>
@@ -263,7 +250,7 @@ Mira Voss stood on the platform long after the train had gone. She had hidden th
               type="button"
               disabled={loading || !text.trim()}
               onClick={() => void submit()}
-              className="inline-flex items-center gap-2 rounded-md bg-ember px-6 py-3 text-sm font-medium text-ink shadow-sm transition enabled:hover:bg-ember-bright disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-full bg-parchment px-8 py-3 text-sm font-medium text-ink transition enabled:hover:bg-parchment-dim disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? (
                 <>

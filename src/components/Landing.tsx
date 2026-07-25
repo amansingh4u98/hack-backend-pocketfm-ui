@@ -51,38 +51,35 @@ export function Landing({ onStart }: LandingProps) {
 
       <main className="relative mx-auto max-w-6xl px-6 pb-20 pt-10 md:pt-16">
         <div className="animate-fade-up mx-auto max-w-3xl text-center">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-sm border border-line bg-ink-soft px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-mist">
+          <p className="mb-6 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-ember">
             Copilot for storytellers
           </p>
           <h1
-            className="font-display text-5xl leading-[1.05] tracking-tight text-parchment md:text-7xl"
+            className="font-display text-5xl leading-[1.1] tracking-tight text-parchment md:text-7xl"
             style={{ fontFamily: 'var(--font-display)' }}
           >
             Get on a live call
             <br />
-            <span className="text-ember">
+            <span className="italic text-parchment-dim">
               with your characters
             </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-parchment-dim md:text-lg">
+          <p className="mx-auto mt-8 max-w-xl text-base leading-loose text-mist md:text-lg" style={{ fontFamily: 'var(--font-display)' }}>
             Writers already interview their characters on paper. Off the Page
             makes it real — upload your story, pick a character, and talk to them
             face-to-face in seconds.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
             <button
               type="button"
               onClick={onStart}
-              className="group rounded-md bg-ember px-7 py-3.5 text-sm font-medium text-ink shadow-sm transition hover:bg-ember-bright"
+              className="group rounded-full bg-parchment px-8 py-3.5 text-sm font-medium text-ink transition hover:bg-parchment-dim"
             >
               Bring a story to life
-              <span className="ml-2 inline-block transition group-hover:translate-x-0.5">
-                →
-              </span>
             </button>
             <a
               href="#how"
-              className="rounded-md border border-line px-6 py-3.5 text-sm font-medium text-parchment transition hover:bg-ink-soft hover:text-parchment"
+              className="rounded-full px-6 py-3.5 text-sm font-medium text-parchment transition hover:text-ember hover:underline underline-offset-4"
             >
               How it works
             </a>
@@ -90,64 +87,61 @@ export function Landing({ onStart }: LandingProps) {
         </div>
 
         {/* Preview card */}
-        <div className="animate-fade-up mx-auto mt-16 max-w-4xl" style={{ animationDelay: '0.12s' }}>
-          <div className="overflow-hidden rounded-md border border-line bg-ink shadow-lg shadow-black/5">
-            <div className="flex items-center gap-2 border-b border-line bg-ink-soft px-4 py-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose/60" />
-              <span className="h-2.5 w-2.5 rounded-full bg-ember/60" />
-              <span className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
-              <span className="ml-3 font-mono text-[10px] uppercase tracking-wider text-mist">Studio · Session Active</span>
-              <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-green-600">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                LIVE
-              </span>
+        <div className="animate-fade-up mx-auto mt-20 max-w-4xl" style={{ animationDelay: '0.12s' }}>
+          <div className="overflow-hidden rounded-2xl bg-ink-soft shadow-sm">
+            <div className="flex items-center gap-2 bg-ink-muted/50 px-6 py-4">
+              <span className="ml-1 text-xs font-medium uppercase tracking-widest text-mist">Live Session</span>
             </div>
-            <div className="grid md:grid-cols-[1.2fr_1fr]">
-              <div className="relative flex min-h-[240px] items-end bg-ink-muted p-6">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-28 w-28 items-center justify-center rounded-sm border border-line bg-ink text-4xl font-display text-parchment-dim shadow-sm">
+            <div className="grid md:grid-cols-[1fr_1.2fr]">
+              <div className="relative flex min-h-[300px] flex-col items-center justify-center bg-ink-muted p-8">
+                <div className="relative mb-6">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-ink text-3xl font-display text-parchment-dim shadow-sm">
                     M
                   </div>
                 </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-ember">On call</p>
+                <div className="text-center">
                   <p className="font-display text-2xl text-parchment">Mira Voss</p>
-                  <p className="mt-1 font-display text-lg italic text-parchment-dim">“I never told him about the letter…”</p>
+                  <p className="mt-2 text-xs uppercase tracking-widest text-mist">Protagonist</p>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 border-t border-line p-4 md:border-l md:border-t-0">
-                <Bubble who="you" text="Why did you hide the letter from Elias?" />
-                <Bubble
-                  who="them"
-                  text="Because if he knew, he wouldn't have boarded that train. And I needed him gone."
-                />
-                <div className="mt-auto rounded-sm border border-dashed border-line bg-ink-soft px-3 py-2 text-center text-[11px] font-medium text-mist">
-                  Type or speak · character stays in-world
+              <div className="flex flex-col gap-6 p-8 md:border-l border-line/50">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-mist">You</span>
+                    <p className="mt-1 font-display text-lg text-parchment-dim">Why did you hide the letter from Elias?</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ember">Mira Voss</span>
+                    <p className="mt-1 font-display text-xl italic text-parchment leading-relaxed">Because if he knew, he wouldn't have boarded that train. And I needed him gone.</p>
+                  </div>
+                </div>
+                <div className="mt-auto pt-6 text-xs text-mist/70 italic">
+                  Dialogue remains bound by your story context.
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <section id="how" className="mt-24">
+        <section id="how" className="mt-32">
           <h2
-            className="mb-10 text-center font-display text-3xl text-parchment md:text-4xl"
+            className="mb-16 text-center font-display text-4xl text-parchment md:text-5xl"
             style={{ fontFamily: 'var(--font-display)' }}
           >
             From draft to dialogue
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="animate-fade-up rounded-md border border-line bg-ink-soft p-5 transition hover:border-mist/40"
+                className="animate-fade-up text-center"
                 style={{ animationDelay: `${0.05 * i}s` }}
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm border border-line bg-ink text-ember">
-                  <f.icon size={18} strokeWidth={1.5} />
+                <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-ink-soft text-ember">
+                  <f.icon size={20} strokeWidth={1.5} />
                 </div>
-                <h3 className="mb-2 text-sm font-medium text-parchment">{f.title}</h3>
-                <p className="text-sm leading-relaxed text-mist">{f.body}</p>
+                <h3 className="mb-3 font-display text-xl text-parchment">{f.title}</h3>
+                <p className="text-sm leading-loose text-mist">{f.body}</p>
               </div>
             ))}
           </div>
@@ -179,21 +173,6 @@ function Brand() {
   )
 }
 
-function Bubble({ who, text }: { who: 'you' | 'them'; text: string }) {
-  const mine = who === 'you'
-  return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[90%] rounded-sm border px-3 py-2 text-xs leading-relaxed ${
-          mine
-            ? 'border-ember/30 bg-ink-soft text-parchment'
-            : 'border-line bg-ink text-parchment-dim'
-        }`}
-      >
-        {text}
-      </div>
-    </div>
-  )
-}
+
 
 export { Brand }
