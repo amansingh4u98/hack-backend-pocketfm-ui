@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   Character,
   ChatMessage,
   LiveSession,
   StoryContext,
 } from '../types'
-import { endSession, openLiveSession, sendChatTurn } from '../api/client'
+import { endSession, getLiveClient, openLiveSession, sendChatTurn } from '../api/client'
+import { AudioPlayer } from '../lib/audioPlayer'
 import { ChatWindow } from './ChatWindow'
 import { VideoStage } from './VideoStage'
 import { Brand } from './Landing'
@@ -61,12 +62,22 @@ export function CallRoom({
   const [isTyping, setIsTyping] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(Boolean(greeting))
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const playerRef = useRef<AudioPlayer | null>(null)
 
   // Open the room socket once, up front. Turn latency should not include a
   // WebSocket handshake, and the socket has to stay up to carry audio.
   useEffect(() => {
     let cancelled = false
+    const player = new AudioPlayer({
+      onSpeakingChange: (speaking) => {
+        if (!cancelled) setIsSpeaking(speaking)
+      },
+    })
+    playerRef.current = player
+
     openLiveSession(session, {
+      onAudio: (frame) => player.play(frame),
       onStateChange: (state) => {
         if (cancelled || state !== 'reconnecting') return
         setMessages((m) => [
@@ -85,8 +96,20 @@ export function CallRoom({
     })
     return () => {
       cancelled = true
+      playerRef.current = null
+      void player.close()
     }
   }, [session])
+
+  // Browsers refuse to start audio without a gesture, so the first send
+  // doubles as the unlock. Before that the character is inaudible, which is
+  // worse than silence if we do not say so.
+  const unlockAudio = useCallback(async () => {
+    const player = playerRef.current
+    if (!player || player.unlocked) return
+    const ok = await player.unlock()
+    setAudioUnlocked(ok)
+  }, [])
 
   useEffect(() => {
     if (!greeting) return
@@ -109,7 +132,12 @@ export function CallRoom({
       }
       setMessages((m) => [...m, userMsg])
       setIsTyping(true)
-      setIsSpeaking(false)
+
+      // Barge-in: whatever is still queued stops the moment the writer speaks,
+      // otherwise the character talks over them for the length of the buffer.
+      playerRef.current?.stop()
+      getLiveClient(session.sessionId)?.interrupt()
+      await unlockAudio()
 
       try {
         const res = await sendChatTurn({
@@ -148,7 +176,7 @@ export function CallRoom({
         setIsTyping(false)
       }
     },
-    [session, character],
+    [session, character, unlockAudio],
   )
 
   return (
@@ -163,6 +191,16 @@ export function CallRoom({
           </p>
           <p className="text-sm font-medium text-parchment">{character.name}</p>
         </div>
+        {session.mode === 'live' && !audioUnlocked ? (
+          <button
+            type="button"
+            onClick={() => void unlockAudio()}
+            className="rounded-full border border-line px-3 py-1 text-xs text-mist hover:text-parchment"
+            title="Browsers block audio until you interact with the page"
+          >
+            Enable voice
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void finishCall()}
