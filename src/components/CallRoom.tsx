@@ -41,6 +41,18 @@ export function CallRoom({
         timestamp: new Date().toISOString(),
       },
     ]
+    if (session.mode === 'live' && session.voicesDistinct === false) {
+      // The room still works — it just sounds wrong, and that is exactly the
+      // kind of thing you discover on stage unless someone says it here.
+      base.push({
+        id: 'sys-voices',
+        role: 'system',
+        content:
+          'Heads up: two or more characters share a voice. Set VOICE_POOL on ' +
+          'the server so the cast is audibly distinct.',
+        timestamp: new Date().toISOString(),
+      })
+    }
     if (greeting) {
       base.push({
         id: 'greet-1',

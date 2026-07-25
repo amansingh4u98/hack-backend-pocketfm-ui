@@ -251,6 +251,7 @@ export async function startCall(input: {
         liveToken: res.live_token,
         writerId: res.writer_id || WRITER_ID,
         mode: 'live',
+        voicesDistinct: res.voices_distinct !== false,
       },
     }
   } catch (err) {

@@ -51,6 +51,9 @@ export interface LiveSession {
   liveToken?: string
   writerId?: string
   mode: 'live' | 'offline'
+  /** False when the cast shares voices. Surfaced so the writer is told
+   *  before they demo, rather than discovering it on stage. */
+  voicesDistinct?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +127,9 @@ export interface StudioStartSessionResponse {
   live_token: string
   created: boolean
   writer_id: string
+  /** False when two or more characters share a voice — usually an unset
+   *  VOICE_POOL on the server. The room works; it just sounds wrong. */
+  voices_distinct?: boolean
 }
 
 export interface ChatTurnResult {
