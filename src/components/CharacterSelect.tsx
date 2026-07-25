@@ -29,6 +29,7 @@ export function CharacterSelect({
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [asOfScene, setAsOfScene] = useState<number | undefined>(undefined)
 
   async function joinCall() {
     if (!selected) return
@@ -39,6 +40,7 @@ export function CharacterSelect({
         story,
         character: selected,
         castIds: characters.map((c) => c.id),
+        asOfScene: asOfScene,
       })
       onStartCall(res.character, res.session, res.greeting)
     } catch (e) {
@@ -83,6 +85,23 @@ export function CharacterSelect({
               {summary}
             </p>
           )}
+          <div className="mt-6 flex items-center gap-3 rounded-lg border border-line bg-ink-soft/30 p-4">
+            <label htmlFor="asOfScene" className="text-sm font-medium text-parchment">
+              Timeline Cutoff:
+            </label>
+            <input
+              type="number"
+              id="asOfScene"
+              min="0"
+              placeholder="e.g. 5"
+              value={asOfScene ?? ''}
+              onChange={(e) => setAsOfScene(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              className="w-24 rounded border border-line bg-ink px-3 py-1.5 text-sm text-parchment placeholder:text-mist/50 focus:border-ember focus:outline-none"
+            />
+            <span className="text-xs text-mist">
+              Only expose facts known before this scene
+            </span>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

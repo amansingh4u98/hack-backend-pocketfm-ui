@@ -205,6 +205,7 @@ export async function startCall(input: {
   story: StoryContext
   character: Character
   castIds?: string[]
+  asOfScene?: number
 }): Promise<StartCallResult> {
   const extraction = input.story.extraction
   if (!extraction) {
@@ -235,6 +236,7 @@ export async function startCall(input: {
           character_ids: selectedIds,
           writer_id: WRITER_ID,
           request_id: crypto.randomUUID(),
+          as_of_scene: input.asOfScene,
           ...(Object.keys(voiceIds).length ? { voice_ids: voiceIds } : {}),
         }),
       },
