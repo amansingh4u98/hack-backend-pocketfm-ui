@@ -104,7 +104,7 @@ export function CharacterSelect({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {characters.map((c, i) => {
             const active = selected?.id === c.id
             return (
@@ -112,38 +112,29 @@ export function CharacterSelect({
                 key={c.id}
                 type="button"
                 onClick={() => setSelected(c)}
-                className={`animate-fade-up group rounded-md border p-5 text-left transition ${
+                className={`animate-fade-up group relative p-6 text-left transition ${
                   active
-                    ? 'border-ember bg-ink shadow-sm'
-                    : 'border-line bg-ink-soft hover:border-mist/40'
+                    ? 'bg-ink-soft'
+                    : 'bg-transparent hover:bg-ink-soft/50'
                 }`}
                 style={{ animationDelay: `${0.04 * i}s` }}
               >
-                <div className="mb-4 flex items-start justify-between gap-2">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border text-sm font-semibold ${
-                      active ? 'border-ember bg-ember/10 text-ember' : 'border-line bg-ink text-parchment-dim'
-                    }`}
-                  >
+                {/* Minimal top border acting as a divider instead of a box */}
+                <div className={`absolute top-0 left-6 right-6 h-[1px] transition ${active ? 'bg-ember' : 'bg-line group-hover:bg-line'}`} />
+
+                <div className="mb-6 mt-2 flex items-start justify-between gap-2">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink-muted text-lg font-display text-parchment">
                     {initials(c.name)}
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
                     {c.importance && (
-                      <span className="rounded-sm border border-line bg-ink px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-mist">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-mist">
                         {c.importance}
-                      </span>
-                    )}
-                    {active && (
-                      <span className="rounded-sm bg-ember px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink">
-                        Selected
                       </span>
                     )}
                   </div>
                 </div>
-                <h3
-                  className="font-display text-xl text-parchment"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
+                <h3 className="mb-2 font-display text-xl text-parchment" style={{ fontFamily: 'var(--font-display)' }}>
                   {c.name}
                 </h3>
                 {c.role && (
@@ -197,11 +188,11 @@ export function CharacterSelect({
 
         {error && <p className="mt-3 text-sm text-rose">{error}</p>}
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-12 flex items-center justify-between border-t border-line/50 pt-8">
           <button
             type="button"
             onClick={onBack}
-            className="rounded-md px-4 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
+            className="rounded-full px-5 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
           >
             Back to story
           </button>
@@ -209,7 +200,7 @@ export function CharacterSelect({
             type="button"
             disabled={!selected || loading}
             onClick={() => void joinCall()}
-            className="inline-flex items-center gap-2 rounded-md bg-ember px-6 py-3 text-sm font-medium text-ink shadow-sm transition enabled:hover:bg-ember-bright disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-full bg-parchment px-8 py-3 text-sm font-medium text-ink transition enabled:hover:bg-parchment-dim disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? (
               <>

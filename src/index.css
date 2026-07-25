@@ -5,16 +5,16 @@
   --font-body: "DM Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --color-ink: #ffffff;
-  --color-ink-soft: #f8fafc;
-  --color-ink-muted: #f1f5f9;
-  --color-parchment: #0f172a;
-  --color-parchment-dim: #334155;
-  --color-ember: #2563eb;
-  --color-ember-bright: #3b82f6;
-  --color-rose: #475569;
-  --color-mist: #64748b;
-  --color-line: #e2e8f0;
+  --color-ink: #fdfbf7;
+  --color-ink-soft: #f3efe6;
+  --color-ink-muted: #e8e2d6;
+  --color-parchment: #1f1a17;
+  --color-parchment-dim: #5c534d;
+  --color-ember: #185b53;
+  --color-ember-bright: #12433d;
+  --color-rose: #a35443;
+  --color-mist: #8c847d;
+  --color-line: #e2dfd9;
 }
 
 @layer base {
@@ -38,7 +38,7 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-ember) 20%, transparent);
+    background: color-mix(in oklab, var(--color-ember) 15%, transparent);
     color: var(--color-parchment);
   }
 }
@@ -46,8 +46,6 @@
 /* Crisp grid background for that "Tech + Writer" feel */
 .app-bg {
   background-color: var(--color-ink);
-  background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
 /* Scrollbars */
