@@ -54,7 +54,7 @@ Landing
    → Story upload (paste or PDF/DOC/TXT)
    → POST /actor-context/extract
    → Character select (cast cards from extraction)
-   → POST /v1/studio/start-session  → room_id, session_id, live_token
+   → POST /actor-context/bootstrap  → room_id, session_id, live_token
    → Call room
         → WS …/live?token=…
         → user.transcript.submit
@@ -139,7 +139,7 @@ Base URL in dev: empty → requests go to `/api/...` and Vite rewrites to port *
 | Ready | `GET` | `/ready` | Readiness probe |
 | Extract | `POST` | `/actor-context/extract` | Story text → `StoryExtraction` |
 | Extract file | `POST` | `/actor-context/extract/upload` | Multipart upload (available; UI currently parses files client-side then uses JSON extract) |
-| Start call | `POST` | `/v1/studio/start-session` | Bootstrap room + mint `live_token` |
+| Start call | `POST` | `/actor-context/bootstrap` | Bootstrap room + mint `live_token` |
 | Live | `WS` | `/v1/rooms/{room_id}/sessions/{session_id}/live?token=` | Control plane + media frames |
 
 ### Extract request
@@ -278,7 +278,7 @@ npm run preview  # preview build
 ### Character select
 
 - Cards mapped from extraction: role, importance, aliases, personality, motivation, secret count  
-- Start call → `POST /v1/studio/start-session` for the selected character  
+- Start call → `POST /actor-context/bootstrap` for the selected character  
 
 ### Call room
 
@@ -303,7 +303,7 @@ npm run preview  # preview build
 2. **No `LIVE_TOKEN_SECRET` or API keys in Vite env for production.** Tokens are minted by the backend studio route.  
 3. **Do not commit** `node_modules/`, `dist/`, `.env`, OS junk.  
 4. Story text is user content—treat as sensitive in real deployments (HTTPS, auth, retention).  
-5. Webhook-style extraction bootstrap (`/v1/integrations/extractions/bootstrap`) is **server-to-server**; the UI uses `/v1/studio/start-session` instead.  
+5. Webhook-style extraction bootstrap (`/v1/integrations/extractions/bootstrap`) is **server-to-server**; the UI uses `/actor-context/bootstrap` instead.  
 
 ---
 
