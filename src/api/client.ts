@@ -2,8 +2,6 @@ import type {
   Character,
   ChatTurnResult,
   ExtractRequestBody,
-  LiveClientEvent,
-  LiveServerEvent,
   LiveSession,
   StoryContext,
   StoryExtraction,
@@ -15,6 +13,8 @@ import {
   mapExtractionToCharacters,
   summaryFromExtraction,
 } from '../lib/mapExtraction'
+import { LiveSessionClient } from '../lib/liveSession'
+import type { AudioFrame, ConnectionState } from '../lib/liveSession'
 
 /**
  * Base URL for FastAPI.
@@ -52,16 +52,6 @@ function url(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`
   if (API_BASE) return `${API_BASE}${p}`
   return `/api${p}`
-}
-
-function wsUrl(path: string): string {
-  const p = path.startsWith('/') ? path : `/${path}`
-  if (API_BASE) {
-    const base = API_BASE.replace(/^http/, 'ws')
-    return `${base}${p}`
-  }
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}/api${p}`
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -283,13 +273,69 @@ function offlineCall(character: Character, reason: string): StartCallResult {
   }
 }
 
+/**
+ * One client per session, held open for the whole call.
+ *
+ * Keyed by sessionId so components can reach the socket for audio and
+ * connection state without threading it through props.
+ */
+const liveClients = new Map<string, LiveSessionClient>()
+
+export function getLiveClient(sessionId: string): LiveSessionClient | undefined {
+  return liveClients.get(sessionId)
+}
+
+export interface LiveSessionHandlers {
+  onAudio?: (frame: AudioFrame) => void
+  onStateChange?: (state: ConnectionState) => void
+  onTextDelta?: (text: string, agentId?: string) => void
+}
+
+/** Open (or reuse) the persistent socket for a live session. */
+export async function openLiveSession(
+  session: LiveSession,
+  handlers: LiveSessionHandlers = {},
+): Promise<LiveSessionClient | null> {
+  if (
+    session.mode !== 'live' ||
+    !session.liveToken ||
+    session.sessionId.startsWith('local-')
+  ) {
+    return null
+  }
+
+  const existing = liveClients.get(session.sessionId)
+  if (existing) return existing
+
+  const client = new LiveSessionClient(
+    {
+      apiBase: API_BASE,
+      roomId: session.roomId,
+      sessionId: session.sessionId,
+      token: session.liveToken,
+    },
+    handlers,
+  )
+  liveClients.set(session.sessionId, client)
+  try {
+    await client.connect()
+  } catch (err) {
+    liveClients.delete(session.sessionId)
+    throw err
+  }
+  return client
+}
+
 /** Leave live room via WS session.leave when possible */
 export async function endSession(session: LiveSession): Promise<void> {
-  if (session.mode !== 'live' || !session.liveToken) return
-  try {
-    await leaveViaWebSocket(session)
-  } catch (err) {
-    console.warn('[api] end session WS leave:', err)
+  const client = liveClients.get(session.sessionId)
+  if (client) {
+    liveClients.delete(session.sessionId)
+    try {
+      client.close()
+    } catch (err) {
+      console.warn('[api] end session close:', err)
+    }
   }
 }
 
@@ -302,22 +348,23 @@ export async function sendChatTurn(input: {
   character: Character
   message: string
 }): Promise<ChatTurnResult> {
-  if (
-    input.session.mode === 'live' &&
-    input.session.liveToken &&
-    !input.session.sessionId.startsWith('local-')
-  ) {
-    try {
-      return await sendViaWebSocket({
-        roomId: input.session.roomId,
-        sessionId: input.session.sessionId,
-        liveToken: input.session.liveToken,
-        character: input.character,
-        message: input.message,
-      })
-    } catch (err) {
-      console.warn('[api] live WS turn failed, offline reply:', err)
+  try {
+    const client = await openLiveSession(input.session)
+    if (client) {
+      const result = await client.sendText(input.message)
+      return {
+        reply:
+          result.reply ||
+          `(${input.character.name} finished speaking without text — check the TTS-only path.)`,
+        character_name: result.agentId
+          ? humanizeAgentId(result.agentId, input.character)
+          : input.character.name,
+        turn_id: result.turnId,
+        agent_id: result.agentId,
+      }
     }
+  } catch (err) {
+    console.warn('[api] live turn failed, offline reply:', err)
   }
 
   await delay(600 + Math.random() * 700)
@@ -325,233 +372,6 @@ export async function sendChatTurn(input: {
     reply: offlineReply(input.message, input.character.name),
     character_name: input.character.name,
   }
-}
-
-function sendViaWebSocket(input: {
-  roomId: string
-  sessionId: string
-  liveToken: string
-  character: Character
-  message: string
-}): Promise<ChatTurnResult> {
-  return new Promise((resolve, reject) => {
-    const path =
-      `/v1/rooms/${input.roomId}/sessions/${input.sessionId}/live` +
-      `?token=${encodeURIComponent(input.liveToken)}`
-    const socket = new WebSocket(wsUrl(path))
-    let settled = false
-    let textBuffer = ''
-    let characterName = input.character.name
-    let turnId: string | undefined
-    let agentId: string | undefined
-    let joined = false
-
-    const timer = window.setTimeout(() => {
-      if (!settled) {
-        settled = true
-        try {
-          socket.close()
-        } catch {
-          /* ignore */
-        }
-        reject(new Error('WebSocket chat timed out'))
-      }
-    }, 45_000)
-
-    const finish = (result: ChatTurnResult) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timer)
-      try {
-        const leave: LiveClientEvent = {
-          schema_version: '1.0',
-          event_id: crypto.randomUUID(),
-          type: 'session.leave',
-        }
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(leave))
-        }
-        socket.close()
-      } catch {
-        /* ignore */
-      }
-      resolve(result)
-    }
-
-    const fail = (error: Error) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timer)
-      try {
-        socket.close()
-      } catch {
-        /* ignore */
-      }
-      reject(error)
-    }
-
-    socket.onopen = () => {
-      // Server auto-accepts after token check and emits session.joined.
-      // Submit transcript once joined (or immediately if events race).
-      const trySubmit = () => {
-        const submit: LiveClientEvent = {
-          schema_version: '1.0',
-          event_id: crypto.randomUUID(),
-          type: 'user.transcript.submit',
-          turn_id: crypto.randomUUID(),
-          stream_id: crypto.randomUUID(),
-          text: input.message,
-        }
-        socket.send(JSON.stringify(submit))
-      }
-
-      // Brief delay so session.joined can arrive; also submit if already joined
-      window.setTimeout(() => {
-        if (settled) return
-        if (!joined) {
-          // Submit anyway — server may not require wait after accept
-          trySubmit()
-        } else {
-          trySubmit()
-        }
-      }, 80)
-    }
-
-    socket.onmessage = (ev) => {
-      if (typeof ev.data !== 'string') {
-        // Binary agent.audio.chunk frames — ignore for text chat UI
-        return
-      }
-      try {
-        const msg = JSON.parse(ev.data) as LiveServerEvent
-        const type = msg.type
-
-        if (type === 'session.joined') {
-          joined = true
-          return
-        }
-
-        if (type === 'speaker.selected') {
-          if (msg.speaker_id) {
-            characterName = String(msg.speaker_id)
-          }
-          turnId = msg.turn_id || turnId
-          return
-        }
-
-        if (type === 'agent.text.delta') {
-          textBuffer += String(msg.text || '')
-          if (msg.agent_id) {
-            agentId = String(msg.agent_id)
-            characterName = humanizeAgentId(String(msg.agent_id), input.character)
-          }
-          turnId = msg.turn_id || turnId
-          return
-        }
-
-        if (
-          type === 'agent.text.completed' ||
-          type === 'agent.turn.completed'
-        ) {
-          const reply = textBuffer.trim()
-          if (msg.agent_id) {
-            agentId = String(msg.agent_id)
-            characterName = humanizeAgentId(String(msg.agent_id), input.character)
-          }
-          if (!reply && type === 'agent.text.completed') {
-            // Wait for turn.completed if text empty
-            return
-          }
-          finish({
-            reply:
-              reply ||
-              `(${characterName} finished speaking without text — check TTS-only path.)`,
-            character_name: characterName,
-            turn_id: msg.turn_id || turnId,
-            agent_id: agentId,
-          })
-          return
-        }
-
-        if (type === 'agent.turn.failed' || type === 'error') {
-          fail(
-            new Error(
-              String(msg.message || msg.code || 'Live room error'),
-            ),
-          )
-          return
-        }
-
-        if (type === 'agent.turn.cancelled' || type === 'turn.interrupted') {
-          if (textBuffer.trim()) {
-            finish({
-              reply: textBuffer.trim(),
-              character_name: characterName,
-              turn_id: msg.turn_id || turnId,
-              agent_id: agentId,
-            })
-          }
-        }
-      } catch (e) {
-        fail(e instanceof Error ? e : new Error('Bad WS message'))
-      }
-    }
-
-    socket.onerror = () => {
-      fail(new Error('WebSocket connection failed'))
-    }
-
-    socket.onclose = () => {
-      if (!settled) {
-        if (textBuffer.trim()) {
-          finish({
-            reply: textBuffer.trim(),
-            character_name: characterName,
-            turn_id: turnId,
-            agent_id: agentId,
-          })
-        } else {
-          fail(new Error('WebSocket closed before reply'))
-        }
-      }
-    }
-  })
-}
-
-function leaveViaWebSocket(session: LiveSession): Promise<void> {
-  return new Promise((resolve) => {
-    if (!session.liveToken) {
-      resolve()
-      return
-    }
-    const path =
-      `/v1/rooms/${session.roomId}/sessions/${session.sessionId}/live` +
-      `?token=${encodeURIComponent(session.liveToken)}`
-    const socket = new WebSocket(wsUrl(path))
-    const done = () => {
-      try {
-        socket.close()
-      } catch {
-        /* ignore */
-      }
-      resolve()
-    }
-    const timer = window.setTimeout(done, 2000)
-    socket.onopen = () => {
-      const leave: LiveClientEvent = {
-        schema_version: '1.0',
-        event_id: crypto.randomUUID(),
-        type: 'session.leave',
-      }
-      socket.send(JSON.stringify(leave))
-      window.clearTimeout(timer)
-      done()
-    }
-    socket.onerror = () => {
-      window.clearTimeout(timer)
-      done()
-    }
-  })
 }
 
 function humanizeAgentId(agentId: string, character: Character): string {

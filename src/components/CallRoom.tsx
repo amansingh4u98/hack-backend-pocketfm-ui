@@ -5,7 +5,7 @@ import type {
   LiveSession,
   StoryContext,
 } from '../types'
-import { endSession, sendChatTurn } from '../api/client'
+import { endSession, openLiveSession, sendChatTurn } from '../api/client'
 import { ChatWindow } from './ChatWindow'
 import { VideoStage } from './VideoStage'
 import { Brand } from './Landing'
@@ -61,6 +61,32 @@ export function CallRoom({
   const [isTyping, setIsTyping] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(Boolean(greeting))
+
+  // Open the room socket once, up front. Turn latency should not include a
+  // WebSocket handshake, and the socket has to stay up to carry audio.
+  useEffect(() => {
+    let cancelled = false
+    openLiveSession(session, {
+      onStateChange: (state) => {
+        if (cancelled || state !== 'reconnecting') return
+        setMessages((m) => [
+          ...m,
+          {
+            id: crypto.randomUUID(),
+            role: 'system',
+            content: 'Connection dropped — reconnecting and replaying missed turns…',
+            timestamp: new Date().toISOString(),
+          },
+        ])
+      },
+    }).catch((err) => {
+      if (cancelled) return
+      console.warn('[call] live session unavailable:', err)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session])
 
   useEffect(() => {
     if (!greeting) return
