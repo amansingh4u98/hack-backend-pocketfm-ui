@@ -37,55 +37,87 @@ export default function App() {
   }
 
   return (
-    <div className="app-bg h-full min-h-screen">
-      {step === 'landing' && (
-        <Landing onStart={() => setStep('upload')} />
+    <div className="app-bg flex h-full min-h-screen flex-col">
+      {/* Apple-style minimalist top navigation bar */}
+      {step !== 'landing' && (
+        <nav className="flex h-14 shrink-0 items-center justify-between border-b border-line/40 bg-[#FAF9F6] px-6">
+          <div className="flex w-1/3 items-center justify-start">
+            {step !== 'call' && (
+              <button
+                type="button"
+                onClick={step === 'upload' ? leaveStudio : resetToUpload}
+                className="group flex items-center gap-1.5 text-sm font-medium text-mist transition hover:text-parchment"
+              >
+                <svg width="10" height="16" viewBox="0 0 10 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-mist group-hover:text-parchment transition">
+                  <path d="M8.5 1L1.5 8L8.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Back
+              </button>
+            )}
+          </div>
+          <div className="flex w-1/3 items-center justify-center">
+            <span className="font-display text-lg tracking-wide text-parchment" style={{ fontFamily: 'var(--font-display)' }}>
+              Off the Page
+            </span>
+          </div>
+          <div className="flex w-1/3 items-center justify-end">
+            {step === 'call' && (
+               <span className="text-xs font-semibold uppercase tracking-widest text-ember">
+                 Live Session
+               </span>
+            )}
+          </div>
+        </nav>
       )}
 
-      {step === 'upload' && (
-        <StoryUpload
-          onBack={() => setStep('landing')}
-          onReady={(s, chars, sum) => {
-            setStory(s)
-            setCharacters(chars)
-            setSummary(sum)
-            setStep('characters')
-          }}
-        />
-      )}
+      <main className="flex-1 overflow-auto">
+        {step === 'landing' && (
+          <Landing onStart={() => setStep('upload')} />
+        )}
 
-      {step === 'characters' && story && (
-        <CharacterSelect
-          story={story}
-          characters={characters}
-          summary={summary}
-          onBack={resetToUpload}
-          onStartCall={(character, liveSession, greet) => {
-            setSelected(character)
-            setSession(liveSession)
-            setGreeting(greet)
-            setStep('call')
-          }}
-        />
-      )}
-
-      {step === 'call' && story && selected && session && (
-        <div className="h-screen">
-          <CallRoom
-            story={story}
-            character={selected}
-            session={session}
-            greeting={greeting}
-            onEndCall={() => {
-              setSelected(null)
-              setSession(null)
-              setGreeting(undefined)
+        {step === 'upload' && (
+          <StoryUpload
+            onReady={(s, chars, sum) => {
+              setStory(s)
+              setCharacters(chars)
+              setSummary(sum)
               setStep('characters')
             }}
-            onLeaveStudio={leaveStudio}
           />
-        </div>
-      )}
+        )}
+
+        {step === 'characters' && story && (
+          <CharacterSelect
+            story={story}
+            characters={characters}
+            summary={summary}
+            onStartCall={(character, liveSession, greet) => {
+              setSelected(character)
+              setSession(liveSession)
+              setGreeting(greet)
+              setStep('call')
+            }}
+          />
+        )}
+
+        {step === 'call' && story && selected && session && (
+          <div className="h-[calc(100vh-56px)]">
+            <CallRoom
+              story={story}
+              character={selected}
+              session={session}
+              greeting={greeting}
+              onEndCall={() => {
+                setSelected(null)
+                setSession(null)
+                setGreeting(undefined)
+                setStep('characters')
+              }}
+              onLeaveStudio={leaveStudio}
+            />
+          </div>
+        )}
+      </main>
     </div>
   )
 }

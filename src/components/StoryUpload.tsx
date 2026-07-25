@@ -11,11 +11,8 @@ import {
 import { extractTextFromFile, guessTitle } from '../lib/parseStory'
 import { ingestStory } from '../api/client'
 import type { Character, StoryContext } from '../types'
-import { Brand } from './Landing'
-import { BackendStatus } from './BackendStatus'
 
 interface StoryUploadProps {
-  onBack: () => void
   onReady: (
     story: StoryContext,
     characters: Character[],
@@ -24,7 +21,7 @@ interface StoryUploadProps {
   ) => void
 }
 
-export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
+export function StoryUpload({ onReady }: StoryUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
@@ -91,17 +88,6 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-line px-6 py-4">
-        <button type="button" onClick={onBack} className="text-left">
-          <Brand />
-        </button>
-        <div className="flex items-center gap-3">
-          <BackendStatus />
-          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-mist">
-            Step 1 · Story
-          </span>
-        </div>
-      </header>
 
       <div className="mx-auto grid w-full max-w-6xl flex-1 gap-12 px-6 py-12 lg:grid-cols-[1fr_1.15fr]">
         <div className="animate-fade-up space-y-8">
@@ -238,14 +224,7 @@ Mira Voss stood on the platform long after the train had gone. She had hidden th
             </div>
           )}
 
-          <div className="mt-8 flex items-center justify-between gap-3 border-t border-line/50 pt-8">
-            <button
-              type="button"
-              onClick={onBack}
-              className="rounded-full px-5 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
-            >
-              Back
-            </button>
+          <div className="mt-8 flex items-center justify-end gap-3 border-t border-line/50 pt-8">
             <button
               type="button"
               disabled={loading || !text.trim()}

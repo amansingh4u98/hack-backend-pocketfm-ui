@@ -10,7 +10,6 @@ import { AudioPlayer } from '../lib/audioPlayer'
 import { AudioCapture } from '../lib/audioCapture'
 import { ChatWindow } from './ChatWindow'
 import { VideoStage } from './VideoStage'
-import { Brand } from './Landing'
 
 interface CallRoomProps {
   story: StoryContext
@@ -238,8 +237,8 @@ export function CallRoom({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between border-b border-line/50 px-6 py-4">
-        <button type="button" onClick={onLeaveStudio} className="text-left">
-          <Brand />
+        <button type="button" onClick={onLeaveStudio} className="text-xs font-medium text-mist transition hover:text-parchment text-left">
+          Leave Studio
         </button>
         <div className="hidden text-center sm:block">
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-mist mb-1">
