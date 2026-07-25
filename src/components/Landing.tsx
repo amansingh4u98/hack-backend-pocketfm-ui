@@ -51,8 +51,7 @@ export function Landing({ onStart }: LandingProps) {
 
       <main className="relative mx-auto max-w-6xl px-6 pb-20 pt-10 md:pt-16">
         <div className="animate-fade-up mx-auto max-w-3xl text-center">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-line bg-ink-soft/60 px-3 py-1 text-xs uppercase tracking-[0.2em] text-ember">
-            <span className="h-1.5 w-1.5 rounded-full bg-ember" />
+          <p className="mb-4 inline-flex items-center gap-2 rounded-sm border border-line bg-ink-soft px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-mist">
             Copilot for storytellers
           </p>
           <h1
@@ -61,11 +60,11 @@ export function Landing({ onStart }: LandingProps) {
           >
             Get on a live call
             <br />
-            <span className="bg-gradient-to-r from-ember via-ember-bright to-rose bg-clip-text text-transparent">
+            <span className="text-ember">
               with your characters
             </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-mist md:text-lg">
+          <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-parchment-dim md:text-lg">
             Writers already interview their characters on paper. Off the Page
             makes it real — upload your story, pick a character, and talk to them
             face-to-face in seconds.
@@ -74,7 +73,7 @@ export function Landing({ onStart }: LandingProps) {
             <button
               type="button"
               onClick={onStart}
-              className="group rounded-full bg-gradient-to-r from-ember to-[#d4894a] px-7 py-3.5 text-sm font-semibold text-ink shadow-[0_0_40px_-8px_rgba(232,164,90,0.7)] transition hover:brightness-110"
+              className="group rounded-md bg-ember px-7 py-3.5 text-sm font-medium text-ink shadow-sm transition hover:bg-ember-bright"
             >
               Bring a story to life
               <span className="ml-2 inline-block transition group-hover:translate-x-0.5">
@@ -83,7 +82,7 @@ export function Landing({ onStart }: LandingProps) {
             </button>
             <a
               href="#how"
-              className="rounded-full border border-line px-6 py-3.5 text-sm text-parchment-dim transition hover:border-ember/30 hover:text-parchment"
+              className="rounded-md border border-line px-6 py-3.5 text-sm font-medium text-parchment transition hover:bg-ink-soft hover:text-parchment"
             >
               How it works
             </a>
@@ -92,28 +91,28 @@ export function Landing({ onStart }: LandingProps) {
 
         {/* Preview card */}
         <div className="animate-fade-up mx-auto mt-16 max-w-4xl" style={{ animationDelay: '0.12s' }}>
-          <div className="overflow-hidden rounded-2xl border border-line bg-ink-soft/70 shadow-2xl shadow-black/40 backdrop-blur">
-            <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose/80" />
-              <span className="h-2.5 w-2.5 rounded-full bg-ember/80" />
-              <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
-              <span className="ml-3 text-xs text-mist">Studio · Live character call</span>
-              <span className="ml-auto flex items-center gap-1.5 text-[11px] text-green-400">
-                <span className="live-dot h-1.5 w-1.5 rounded-full bg-green-400" />
+          <div className="overflow-hidden rounded-md border border-line bg-ink shadow-lg shadow-black/5">
+            <div className="flex items-center gap-2 border-b border-line bg-ink-soft px-4 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-rose/60" />
+              <span className="h-2.5 w-2.5 rounded-full bg-ember/60" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
+              <span className="ml-3 font-mono text-[10px] uppercase tracking-wider text-mist">Studio · Session Active</span>
+              <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium tracking-wider text-green-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                 LIVE
               </span>
             </div>
             <div className="grid md:grid-cols-[1.2fr_1fr]">
-              <div className="relative flex min-h-[240px] items-end bg-gradient-to-br from-ink via-ink-muted to-[#2a1f18] p-6">
+              <div className="relative flex min-h-[240px] items-end bg-ink-muted p-6">
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-28 w-28 items-center justify-center rounded-full border border-ember/30 bg-ember/10 text-4xl font-display text-ember">
+                  <div className="flex h-28 w-28 items-center justify-center rounded-sm border border-line bg-ink text-4xl font-display text-parchment-dim shadow-sm">
                     M
                   </div>
                 </div>
                 <div className="relative z-10">
-                  <p className="text-xs uppercase tracking-widest text-mist">On call</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-ember">On call</p>
                   <p className="font-display text-2xl text-parchment">Mira Voss</p>
-                  <p className="text-sm text-mist">“I never told him about the letter…”</p>
+                  <p className="mt-1 font-display text-lg italic text-parchment-dim">“I never told him about the letter…”</p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 border-t border-line p-4 md:border-l md:border-t-0">
@@ -122,7 +121,7 @@ export function Landing({ onStart }: LandingProps) {
                   who="them"
                   text="Because if he knew, he wouldn't have boarded that train. And I needed him gone."
                 />
-                <div className="mt-auto rounded-xl border border-dashed border-line px-3 py-2 text-xs text-mist">
+                <div className="mt-auto rounded-sm border border-dashed border-line bg-ink-soft px-3 py-2 text-center text-[11px] font-medium text-mist">
                   Type or speak · character stays in-world
                 </div>
               </div>
@@ -141,13 +140,13 @@ export function Landing({ onStart }: LandingProps) {
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="animate-fade-up rounded-2xl border border-line bg-ink-soft/50 p-5 transition hover:border-ember/25"
+                className="animate-fade-up rounded-md border border-line bg-ink-soft p-5 transition hover:border-mist/40"
                 style={{ animationDelay: `${0.05 * i}s` }}
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-ember/10 text-ember">
-                  <f.icon size={18} />
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm border border-line bg-ink text-ember">
+                  <f.icon size={18} strokeWidth={1.5} />
                 </div>
-                <h3 className="mb-2 text-sm font-semibold text-parchment">{f.title}</h3>
+                <h3 className="mb-2 text-sm font-medium text-parchment">{f.title}</h3>
                 <p className="text-sm leading-relaxed text-mist">{f.body}</p>
               </div>
             ))}
@@ -165,14 +164,14 @@ export function Landing({ onStart }: LandingProps) {
 function Brand() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-rose text-sm font-bold text-ink">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-parchment text-sm font-bold text-ink">
         O
       </div>
       <div>
         <div className="text-sm font-semibold tracking-wide text-parchment">
           Off the Page
         </div>
-        <div className="text-[10px] uppercase tracking-[0.18em] text-mist">
+        <div className="text-[10px] uppercase tracking-[0.15em] text-mist">
           Character copilot
         </div>
       </div>
@@ -185,10 +184,10 @@ function Bubble({ who, text }: { who: 'you' | 'them'; text: string }) {
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+        className={`max-w-[90%] rounded-sm border px-3 py-2 text-xs leading-relaxed ${
           mine
-            ? 'rounded-br-md bg-ember/20 text-parchment'
-            : 'rounded-bl-md bg-ink-muted text-parchment-dim'
+            ? 'border-ember/30 bg-ink-soft text-parchment'
+            : 'border-line bg-ink text-parchment-dim'
         }`}
       >
         {text}

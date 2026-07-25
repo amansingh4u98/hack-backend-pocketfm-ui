@@ -5,16 +5,16 @@
   --font-body: "DM Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --color-ink: #0c0a09;
-  --color-ink-soft: #1c1917;
-  --color-ink-muted: #292524;
-  --color-parchment: #faf7f2;
-  --color-parchment-dim: #e7e0d4;
-  --color-ember: #e8a45a;
-  --color-ember-bright: #f5c98a;
-  --color-rose: #c97b84;
-  --color-mist: #a8a29e;
-  --color-line: rgba(232, 164, 90, 0.18);
+  --color-ink: #ffffff;
+  --color-ink-soft: #f8fafc;
+  --color-ink-muted: #f1f5f9;
+  --color-parchment: #0f172a;
+  --color-parchment-dim: #334155;
+  --color-ember: #2563eb;
+  --color-ember-bright: #3b82f6;
+  --color-rose: #475569;
+  --color-mist: #64748b;
+  --color-line: #e2e8f0;
 }
 
 @layer base {
@@ -38,18 +38,16 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-ember) 40%, transparent);
-    color: white;
+    background: color-mix(in oklab, var(--color-ember) 20%, transparent);
+    color: var(--color-parchment);
   }
 }
 
-/* Soft ambient grain + vignette */
+/* Crisp grid background for that "Tech + Writer" feel */
 .app-bg {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232, 164, 90, 0.12), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(201, 123, 132, 0.08), transparent 50%),
-    radial-gradient(ellipse 50% 30% at 0% 80%, rgba(232, 164, 90, 0.06), transparent 45%),
-    var(--color-ink);
+  background-color: var(--color-ink);
+  background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* Scrollbars */

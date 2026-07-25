@@ -129,7 +129,7 @@ export function ChatWindow({
 
         {isTyping && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-ink-muted px-4 py-3">
+            <div className="flex items-center gap-1.5 rounded-sm border border-line bg-ink-soft px-4 py-3">
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
               <span className="typing-dot h-1.5 w-1.5 rounded-full bg-mist" />
@@ -143,11 +143,11 @@ export function ChatWindow({
         onSubmit={submit}
         className="border-t border-line p-3"
       >
-        <div className="flex items-end gap-2 rounded-xl border border-line bg-ink/50 px-2 py-2 focus-within:border-ember/35">
+        <div className="flex items-end gap-2 rounded-md border border-line bg-ink px-2 py-2 shadow-sm focus-within:border-ember focus-within:ring-1 focus-within:ring-ember">
           <button
             type="button"
             onClick={toggleMic}
-            className={`mb-0.5 rounded-lg p-2 transition ${
+            className={`mb-0.5 rounded-md p-2 transition ${
               listening || isRecording
                 ? 'bg-rose/20 text-rose'
                 : 'text-mist hover:bg-ink-muted hover:text-parchment'
@@ -173,7 +173,7 @@ export function ChatWindow({
           <button
             type="submit"
             disabled={!draft.trim() || disabled || isTyping || isRecording}
-            className="mb-0.5 rounded-lg bg-ember p-2 text-ink transition enabled:hover:brightness-110 disabled:opacity-30"
+            className="mb-0.5 rounded-md bg-ember p-2 text-ink shadow-sm transition enabled:hover:bg-ember-bright disabled:opacity-30"
             aria-label="Send"
           >
             <Send size={16} />
@@ -194,7 +194,7 @@ function MessageBubble({
   if (message.role === 'system') {
     return (
       <div className="flex justify-center">
-        <p className="max-w-[90%] rounded-full border border-line bg-ink/40 px-3 py-1 text-center text-[11px] text-mist">
+        <p className="max-w-[90%] rounded-sm border border-line bg-ink-soft px-3 py-1 text-center text-[11px] font-medium text-mist">
           {message.content}
         </p>
       </div>
@@ -205,14 +205,15 @@ function MessageBubble({
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+        className={`max-w-[85%] rounded-md border px-4 py-3 text-lg leading-relaxed shadow-sm ${
           mine
-            ? 'rounded-br-md bg-ember/20 text-parchment'
-            : 'rounded-bl-md bg-ink-muted text-parchment-dim'
+            ? 'border-ember/30 bg-ink-soft text-parchment'
+            : 'border-line bg-ink text-parchment-dim'
         }`}
+        style={{ fontFamily: 'var(--font-display)' }}
       >
         {!mine && (
-          <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-ember/80">
+          <p className="mb-2 font-body text-[10px] font-semibold uppercase tracking-wider text-ember">
             {message.characterName || character.name}
           </p>
         )}
