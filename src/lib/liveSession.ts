@@ -107,6 +107,7 @@ export class LiveSessionClient {
   private joinWaiters: Array<() => void> = []
   private outbox: LiveClientEvent[] = []
   private turn: OpenTurn | null = null
+  private lkRoom: import('livekit-client').Room | null = null
 
   private readonly config: SessionConfig
   private readonly handlers: Handlers
@@ -219,6 +220,12 @@ export class LiveSessionClient {
     this.failOpenTurn(new Error('Session closed'))
     const socket = this.socket
     this.socket = null
+    
+    if (this.lkRoom) {
+      this.lkRoom.disconnect()
+      this.lkRoom = null
+    }
+
     if (socket && socket.readyState === WebSocket.OPEN) {
       try {
         socket.send(
@@ -297,11 +304,43 @@ export class LiveSessionClient {
     this.handlers.onEvent?.(event)
 
     switch (event.type) {
-      case 'session.joined':
+      case 'session.joined': {
         this.joined = true
         this.flushOutbox()
         this.joinWaiters.splice(0).forEach((resolve) => resolve())
+        
+        const media = event.media as Record<string, unknown> | undefined
+        if (media?.provider === 'livekit' && typeof media.url === 'string' && typeof media.token === 'string') {
+          // Lazy import livekit-client to avoid loading it if not needed, or just require it at the top
+          // For simplicity here, we'll instantiate it dynamically if possible, or just statically import
+          import('livekit-client').then(({ Room, RoomEvent }) => {
+            const lkRoom = new Room()
+            this.lkRoom = lkRoom
+            lkRoom.on(RoomEvent.TrackSubscribed, (track) => {
+              if (track.kind === 'audio') {
+                const element = track.attach()
+                // Append to body to ensure it plays, though livekit usually handles it
+                element.style.display = 'none'
+                document.body.appendChild(element)
+                // Store element on the track object for cleanup later
+                ;(track as any)._attachedElement = element
+              }
+            })
+            lkRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
+              const element = (track as any)._attachedElement
+              if (element) {
+                track.detach(element)
+                element.remove()
+              }
+            })
+            lkRoom.connect(media.url as string, media.token as string).catch((err) => {
+              console.warn('[livekit] failed to connect to room:', err)
+            })
+          }).catch(err => console.error('Failed to load livekit-client', err))
+        }
+
         return
+      }
 
       case 'agent.text.delta': {
         const text = String(event.text || '')
