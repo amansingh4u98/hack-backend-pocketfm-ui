@@ -10,7 +10,6 @@ import { AudioPlayer } from '../lib/audioPlayer'
 import { AudioCapture } from '../lib/audioCapture'
 import { ChatWindow } from './ChatWindow'
 import { VideoStage } from './VideoStage'
-import { Brand } from './Landing'
 
 interface CallRoomProps {
   story: StoryContext
@@ -41,6 +40,18 @@ export function CallRoom({
         timestamp: new Date().toISOString(),
       },
     ]
+    if (session.mode === 'live' && session.voicesDistinct === false) {
+      // The room still works — it just sounds wrong, and that is exactly the
+      // kind of thing you discover on stage unless someone says it here.
+      base.push({
+        id: 'sys-voices',
+        role: 'system',
+        content:
+          'Heads up: two or more characters share a voice. Set VOICE_POOL on ' +
+          'the server so the cast is audibly distinct.',
+        timestamp: new Date().toISOString(),
+      })
+    }
     if (greeting) {
       base.push({
         id: 'greet-1',
@@ -226,8 +237,8 @@ export function CallRoom({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between border-b border-line/50 px-6 py-4">
-        <button type="button" onClick={onLeaveStudio} className="text-left">
-          <Brand />
+        <button type="button" onClick={onLeaveStudio} className="text-xs font-medium text-mist transition hover:text-parchment text-left">
+          Leave Studio
         </button>
         <div className="hidden text-center sm:block">
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-mist mb-1">

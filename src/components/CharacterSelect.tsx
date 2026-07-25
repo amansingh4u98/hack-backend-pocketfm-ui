@@ -2,14 +2,10 @@ import { useState } from 'react'
 import { ArrowRight, Loader2, UserRound, Sparkles } from 'lucide-react'
 import type { Character, LiveSession, StoryContext } from '../types'
 import { startCall } from '../api/client'
-import { Brand } from './Landing'
-import { BackendStatus } from './BackendStatus'
-
 interface CharacterSelectProps {
   story: StoryContext
   characters: Character[]
   summary?: string
-  onBack: () => void
   onStartCall: (
     character: Character,
     session: LiveSession,
@@ -21,7 +17,6 @@ export function CharacterSelect({
   story,
   characters,
   summary,
-  onBack,
   onStartCall,
 }: CharacterSelectProps) {
   const [selected, setSelected] = useState<Character | null>(
@@ -52,17 +47,6 @@ export function CharacterSelect({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-line px-6 py-4">
-        <button type="button" onClick={onBack} className="text-left">
-          <Brand />
-        </button>
-        <div className="flex items-center gap-3">
-          <BackendStatus />
-          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-mist">
-            Step 2 · Cast
-          </span>
-        </div>
-      </header>
 
       <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <div className="animate-fade-up mb-8 max-w-2xl">
@@ -188,14 +172,7 @@ export function CharacterSelect({
 
         {error && <p className="mt-3 text-sm text-rose">{error}</p>}
 
-        <div className="mt-12 flex items-center justify-between border-t border-line/50 pt-8">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-full px-5 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
-          >
-            Back to story
-          </button>
+        <div className="mt-12 flex items-center justify-end border-t border-line/50 pt-8">
           <button
             type="button"
             disabled={!selected || loading}
