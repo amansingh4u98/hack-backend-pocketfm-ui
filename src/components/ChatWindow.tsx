@@ -8,6 +8,9 @@ interface ChatWindowProps {
   isTyping: boolean
   onSend: (text: string) => void
   disabled?: boolean
+  isLiveSession?: boolean
+  isRecording?: boolean
+  onToggleRecording?: () => void
 }
 
 export function ChatWindow({
@@ -16,6 +19,9 @@ export function ChatWindow({
   isTyping,
   onSend,
   disabled,
+  isLiveSession,
+  isRecording,
+  onToggleRecording,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -29,12 +35,17 @@ export function ChatWindow({
   function submit(e?: React.FormEvent) {
     e?.preventDefault()
     const t = draft.trim()
-    if (!t || disabled || isTyping) return
+    if (!t || disabled || isTyping || isRecording) return
     onSend(t)
     setDraft('')
   }
 
   function toggleMic() {
+    if (isLiveSession && onToggleRecording) {
+      onToggleRecording()
+      return
+    }
+
     const SR =
       typeof window !== 'undefined'
         ? window.SpeechRecognition || window.webkitSpeechRecognition
@@ -137,13 +148,13 @@ export function ChatWindow({
             type="button"
             onClick={toggleMic}
             className={`mb-0.5 rounded-lg p-2 transition ${
-              listening
+              listening || isRecording
                 ? 'bg-rose/20 text-rose'
                 : 'text-mist hover:bg-ink-muted hover:text-parchment'
             }`}
-            title={listening ? 'Stop listening' : 'Dictate'}
+            title={listening || isRecording ? 'Stop speaking' : (isLiveSession ? 'Voice Call' : 'Dictate')}
           >
-            {listening ? <Square size={16} /> : <Mic size={16} />}
+            {listening || isRecording ? <Square size={16} /> : <Mic size={16} />}
           </button>
           <textarea
             value={draft}
@@ -155,13 +166,13 @@ export function ChatWindow({
               }
             }}
             rows={1}
-            placeholder={`Message ${character.name}…`}
-            disabled={disabled}
+            placeholder={isRecording ? 'Listening...' : `Message ${character.name}…`}
+            disabled={disabled || isRecording}
             className="custom-scroll max-h-28 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm text-parchment outline-none placeholder:text-mist/50"
           />
           <button
             type="submit"
-            disabled={!draft.trim() || disabled || isTyping}
+            disabled={!draft.trim() || disabled || isTyping || isRecording}
             className="mb-0.5 rounded-lg bg-ember p-2 text-ink transition enabled:hover:brightness-110 disabled:opacity-30"
             aria-label="Send"
           >

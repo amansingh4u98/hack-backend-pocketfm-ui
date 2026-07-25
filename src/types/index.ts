@@ -161,6 +161,21 @@ export type LiveClientEvent =
     }
   | { schema_version: '1.0'; event_id: string; type: 'discussion.stop' }
   | { schema_version: '1.0'; event_id: string; type: 'session.leave' }
+  | {
+      schema_version: '1.0'
+      event_id: string
+      type: 'writer.audio.start'
+      turn_id: string
+      stream_id: string
+      audio_format: string
+      sample_rate_hz: number
+    }
+  | {
+      schema_version: '1.0'
+      event_id: string
+      type: 'writer.audio.stop'
+      stream_id: string
+    }
 
 /** Server → client JSON events (partial; only fields we use) */
 export interface LiveServerEvent {

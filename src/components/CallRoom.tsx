@@ -7,6 +7,7 @@ import type {
 } from '../types'
 import { endSession, getLiveClient, openLiveSession, sendChatTurn } from '../api/client'
 import { AudioPlayer } from '../lib/audioPlayer'
+import { AudioCapture } from '../lib/audioCapture'
 import { ChatWindow } from './ChatWindow'
 import { VideoStage } from './VideoStage'
 import { Brand } from './Landing'
@@ -63,7 +64,10 @@ export function CallRoom({
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(Boolean(greeting))
   const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const playerRef = useRef<AudioPlayer | null>(null)
+  const captureRef = useRef<AudioCapture | null>(null)
+  const activeStreamRef = useRef<string | null>(null)
 
   // Open the room socket once, up front. Turn latency should not include a
   // WebSocket handshake, and the socket has to stay up to carry audio.
@@ -94,10 +98,19 @@ export function CallRoom({
       if (cancelled) return
       console.warn('[call] live session unavailable:', err)
     })
+
+    const capture = new AudioCapture((data) => {
+      const client = getLiveClient(session.sessionId)
+      if (client) client.sendBinary(data)
+    })
+    captureRef.current = capture
+
     return () => {
       cancelled = true
       playerRef.current = null
       void player.close()
+      captureRef.current = null
+      void capture.stop()
     }
   }, [session])
 
@@ -118,9 +131,40 @@ export function CallRoom({
   }, [greeting])
 
   const finishCall = useCallback(async () => {
+    if (isRecording) {
+      void captureRef.current?.stop()
+    }
     await endSession(session)
     onEndCall()
-  }, [session, onEndCall])
+  }, [session, onEndCall, isRecording])
+
+  const toggleRecording = useCallback(async () => {
+    const client = getLiveClient(session.sessionId)
+    if (!client) return
+
+    if (isRecording) {
+      // Stop recording
+      setIsRecording(false)
+      await captureRef.current?.stop()
+      if (activeStreamRef.current) {
+        client.sendAudioStop(activeStreamRef.current)
+        activeStreamRef.current = null
+      }
+    } else {
+      // Start recording
+      playerRef.current?.stop()
+      client.interrupt()
+      await unlockAudio()
+
+      const turnId = crypto.randomUUID()
+      const streamId = crypto.randomUUID()
+      activeStreamRef.current = streamId
+
+      client.sendAudioStart(turnId, streamId)
+      setIsRecording(true)
+      await captureRef.current?.start()
+    }
+  }, [session.sessionId, isRecording, unlockAudio])
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -227,6 +271,9 @@ export function CallRoom({
             messages={messages}
             isTyping={isTyping}
             onSend={(t) => void handleSend(t)}
+            isLiveSession={session.mode === 'live'}
+            isRecording={isRecording}
+            onToggleRecording={() => void toggleRecording()}
           />
         </div>
       </div>
