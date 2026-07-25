@@ -152,6 +152,14 @@ export type LiveClientEvent =
       type: 'turn.interrupt'
       turn_id: string
     }
+  | {
+      schema_version: '1.0'
+      event_id: string
+      type: 'discussion.start'
+      character_ids: string[]
+      max_agent_turns: number
+    }
+  | { schema_version: '1.0'; event_id: string; type: 'discussion.stop' }
   | { schema_version: '1.0'; event_id: string; type: 'session.leave' }
 
 /** Server → client JSON events (partial; only fields we use) */
