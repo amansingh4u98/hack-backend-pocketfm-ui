@@ -58,7 +58,7 @@ export function CharacterSelect({
         </button>
         <div className="flex items-center gap-3">
           <BackendStatus />
-          <span className="text-xs uppercase tracking-[0.18em] text-mist">
+          <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-mist">
             Step 2 · Cast
           </span>
         </div>
@@ -85,7 +85,7 @@ export function CharacterSelect({
               {summary}
             </p>
           )}
-          <div className="mt-6 flex items-center gap-3 rounded-lg border border-line bg-ink-soft/30 p-4">
+          <div className="mt-6 flex items-center gap-3 rounded-sm border border-line bg-ink-soft p-4 shadow-sm">
             <label htmlFor="asOfScene" className="text-sm font-medium text-parchment">
               Timeline Cutoff:
             </label>
@@ -96,7 +96,7 @@ export function CharacterSelect({
               placeholder="e.g. 5"
               value={asOfScene ?? ''}
               onChange={(e) => setAsOfScene(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-              className="w-24 rounded border border-line bg-ink px-3 py-1.5 text-sm text-parchment placeholder:text-mist/50 focus:border-ember focus:outline-none"
+              className="w-24 rounded-sm border border-line bg-ink px-3 py-1.5 text-sm text-parchment placeholder:text-mist/50 focus:border-ember focus:outline-none"
             />
             <span className="text-xs text-mist">
               Only expose facts known before this scene
@@ -107,34 +107,34 @@ export function CharacterSelect({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {characters.map((c, i) => {
             const active = selected?.id === c.id
-            const color = c.avatar_color || palette[i % palette.length]
             return (
               <button
                 key={c.id}
                 type="button"
                 onClick={() => setSelected(c)}
-                className={`animate-fade-up group rounded-2xl border p-5 text-left transition ${
+                className={`animate-fade-up group rounded-md border p-5 text-left transition ${
                   active
-                    ? 'border-ember/50 bg-ember/10 shadow-[0_0_40px_-20px_rgba(232,164,90,0.6)]'
-                    : 'border-line bg-ink-soft/40 hover:border-ember/25'
+                    ? 'border-ember bg-ink shadow-sm'
+                    : 'border-line bg-ink-soft hover:border-mist/40'
                 }`}
                 style={{ animationDelay: `${0.04 * i}s` }}
               >
                 <div className="mb-4 flex items-start justify-between gap-2">
                   <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-ink"
-                    style={{ backgroundColor: color }}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border text-sm font-semibold ${
+                      active ? 'border-ember bg-ember/10 text-ember' : 'border-line bg-ink text-parchment-dim'
+                    }`}
                   >
                     {initials(c.name)}
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
                     {c.importance && (
-                      <span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase tracking-wider text-mist">
+                      <span className="rounded-sm border border-line bg-ink px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-mist">
                         {c.importance}
                       </span>
                     )}
                     {active && (
-                      <span className="rounded-full bg-ember/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ember">
+                      <span className="rounded-sm bg-ember px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink">
                         Selected
                       </span>
                     )}
@@ -201,7 +201,7 @@ export function CharacterSelect({
           <button
             type="button"
             onClick={onBack}
-            className="rounded-full px-4 py-2.5 text-sm text-mist transition hover:text-parchment"
+            className="rounded-md px-4 py-2.5 text-sm font-medium text-mist transition hover:bg-ink-soft hover:text-parchment"
           >
             Back to story
           </button>
@@ -209,7 +209,7 @@ export function CharacterSelect({
             type="button"
             disabled={!selected || loading}
             onClick={() => void joinCall()}
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-ember to-[#d4894a] px-6 py-3 text-sm font-semibold text-ink shadow-[0_0_30px_-10px_rgba(232,164,90,0.8)] transition enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-md bg-ember px-6 py-3 text-sm font-medium text-ink shadow-sm transition enabled:hover:bg-ember-bright disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? (
               <>
@@ -228,8 +228,6 @@ export function CharacterSelect({
     </div>
   )
 }
-
-const palette = ['#e8a45a', '#c97b84', '#7eb8a2', '#8b9dc9', '#c9a87e', '#a78bc9']
 
 function initials(name: string) {
   return name
