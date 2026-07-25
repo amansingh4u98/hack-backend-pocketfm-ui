@@ -210,7 +210,7 @@ export function StoryUpload({ onBack, onReady }: StoryUploadProps) {
             <ol className="list-decimal space-y-1 pl-4 font-mono text-[11px] text-ember/90">
               <li>POST /actor-context/extract</li>
               <li>cast ← extraction.characters</li>
-              <li>POST /v1/studio/start-session → live token</li>
+              <li>POST /actor-context/bootstrap → live token</li>
               <li>WS …/live?token=…</li>
             </ol>
             <p className="text-[11px] text-mist">

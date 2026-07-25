@@ -173,7 +173,7 @@ export function CharacterSelect({
         </div>
 
         <p className="mt-6 font-mono text-[11px] text-mist">
-          POST /v1/studio/start-session → WS /v1/rooms/…/sessions/…/live
+          POST /actor-context/bootstrap → WS /v1/rooms/…/sessions/…/live
         </p>
 
         {error && <p className="mt-3 text-sm text-rose">{error}</p>}

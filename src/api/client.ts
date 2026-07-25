@@ -204,7 +204,12 @@ export async function ingestStory(input: {
 
 /**
  * Start a live room for selected character(s).
- *   POST /v1/studio/start-session
+ *   POST /actor-context/bootstrap
+ *
+ * The backend never exposed /v1/studio/start-session. This endpoint takes the
+ * same body and returns room_id, session_id and live_token, which is exactly
+ * what the WebSocket needs. voice_ids may be omitted — the server fills them
+ * from DEFAULT_CHARACTER_VOICE_ID.
  */
 export async function startCall(input: {
   story: StoryContext
@@ -232,7 +237,7 @@ export async function startCall(input: {
 
   try {
     const res = await request<StudioStartSessionResponse>(
-      '/v1/studio/start-session',
+      '/actor-context/bootstrap',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -257,10 +262,10 @@ export async function startCall(input: {
       },
     }
   } catch (err) {
-    console.warn('[api] POST /v1/studio/start-session failed:', err)
+    console.warn('[api] POST /actor-context/bootstrap failed:', err)
     return offlineCall(
       input.character,
-      err instanceof Error ? err.message : 'start-session failed',
+      err instanceof Error ? err.message : 'room bootstrap failed',
     )
   }
 }
@@ -582,6 +587,6 @@ function offlineReply(userMessage: string, name: string): string {
   if (q.includes('plot') || q.includes('inconsistent') || q.includes('hole')) {
     return `I only know what happened to me on the page. Point at the moment that feels false — I'll tell you whether it rings true.`
   }
-  return `Hmm. "${userMessage.slice(0, 80)}${userMessage.length > 80 ? '…' : ''}" — stay in the world with me. Ask what I know, what I'd do, or what I'm hiding. (Offline demo — check /actor-context/extract and /v1/studio/start-session.)`
+  return `Hmm. "${userMessage.slice(0, 80)}${userMessage.length > 80 ? '…' : ''}" — stay in the world with me. Ask what I know, what I'd do, or what I'm hiding. (Offline demo — check /actor-context/extract and /actor-context/bootstrap.)`
 }
 
