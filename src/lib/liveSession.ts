@@ -183,6 +183,36 @@ export class LiveSessionClient {
     })
   }
 
+  sendAudioStart(turnId: string, streamId: string): void {
+    this.send({
+      schema_version: '1.0',
+      event_id: crypto.randomUUID(),
+      type: 'writer.audio.start',
+      turn_id: turnId,
+      stream_id: streamId,
+      audio_format: 'pcm_16000',
+      sample_rate_hz: 16000,
+    })
+  }
+
+  sendAudioStop(streamId: string): void {
+    this.send({
+      schema_version: '1.0',
+      event_id: crypto.randomUUID(),
+      type: 'writer.audio.stop',
+      stream_id: streamId,
+    })
+  }
+
+  sendBinary(data: ArrayBuffer): void {
+    if (!this.joined || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      // For binary data, dropping is safer than queuing unbounded PCM arrays
+      // while reconnecting.
+      return
+    }
+    this.socket.send(data)
+  }
+
   close(): void {
     this.closing = true
     this.clearPing()
