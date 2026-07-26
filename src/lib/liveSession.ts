@@ -63,7 +63,7 @@ interface Handlers {
   onEvent?: (event: LiveServerEvent) => void
   onAudio?: (frame: AudioFrame) => void
   onStateChange?: (state: ConnectionState) => void
-  onTextDelta?: (text: string, agentId?: string) => void
+  onTextDelta?: (text: string, agentId?: string, turnId?: string) => void
   onMediaState?: (state: LiveMediaState) => void
 }
 
@@ -81,6 +81,8 @@ export interface LiveParticipantState {
 
 export interface LiveMediaState {
   provider: MediaProvider
+  connected: boolean
+  error?: string
   microphoneMuted: boolean
   activeSpeakerIds: string[]
   participants: LiveParticipantState[]
@@ -133,7 +135,10 @@ export class LiveSessionClient {
   private lkRoom: Room | null = null
   private lkConnectPromise: Promise<void> | null = null
   private mediaProvider: MediaProvider = 'pending'
+  private mediaConnected = false
+  private mediaError: string | undefined
   private microphoneMuted = true
+  private speechLanguageCode: string | null = null
   private activeSpeakerIds: string[] = []
   private mediaParticipants = new Map<string, LiveParticipantState>()
   private trackIds = new Set<string>()
@@ -224,6 +229,16 @@ export class LiveSessionClient {
     })
   }
 
+  setSpeechLanguage(languageCode: string | null): void {
+    this.speechLanguageCode = languageCode
+    this.send({
+      schema_version: '1.0',
+      event_id: crypto.randomUUID(),
+      type: 'writer.language.set',
+      language_code: languageCode,
+    })
+  }
+
   stopDiscussion(): void {
     this.send({
       schema_version: '1.0',
@@ -272,6 +287,16 @@ export class LiveSessionClient {
     return this.mediaProvider
   }
 
+  async startAudioPlayback(): Promise<void> {
+    if (!this.lkRoom) return
+    await this.lkRoom.startAudio()
+    await Promise.all(
+      [...this.attachedAudio.values()].map((element) => element.play()),
+    )
+    this.mediaError = undefined
+    this.emitMediaState()
+  }
+
   sendAudioStart(turnId: string, streamId: string): void {
     this.send({
       schema_version: '1.0',
@@ -281,6 +306,9 @@ export class LiveSessionClient {
       stream_id: streamId,
       audio_format: 'pcm_16000',
       sample_rate_hz: 16000,
+      ...(this.speechLanguageCode
+        ? { language_code: this.speechLanguageCode }
+        : {}),
     })
   }
 
@@ -349,9 +377,18 @@ export class LiveSessionClient {
       if (track.kind === Track.Kind.Audio) {
         const element = track.attach()
         element.autoplay = true
+        element.muted = false
+        element.volume = 1
         element.style.display = 'none'
         document.body.appendChild(element)
         if (track.sid) this.attachedAudio.set(track.sid, element)
+        void this.startAudioPlayback().catch((error: unknown) => {
+          this.mediaError =
+            error instanceof Error
+              ? error.message
+              : 'Click Unmute once to enable room audio'
+          this.emitMediaState()
+        })
       }
       this.syncLiveKitState()
     })
@@ -372,6 +409,15 @@ export class LiveSessionClient {
     })
     room.on(RoomEvent.ParticipantConnected, () => this.syncLiveKitState())
     room.on(RoomEvent.ParticipantDisconnected, () => this.syncLiveKitState())
+    room.on(RoomEvent.Reconnected, () => {
+      this.mediaConnected = true
+      this.mediaError = undefined
+      this.syncLiveKitState()
+    })
+    room.on(RoomEvent.Disconnected, () => {
+      this.mediaConnected = false
+      this.emitMediaState()
+    })
     room.on(RoomEvent.TrackPublished, () => this.syncLiveKitState())
     room.on(RoomEvent.TrackUnpublished, () => this.syncLiveKitState())
     room.on(RoomEvent.LocalTrackPublished, () => this.syncLiveKitState())
@@ -380,6 +426,8 @@ export class LiveSessionClient {
     this.lkConnectPromise = room
       .connect(url, token)
       .then(async () => {
+        this.mediaConnected = true
+        this.mediaError = undefined
         if (!this.microphoneMuted) {
           await room.localParticipant.setMicrophoneEnabled(true, {
             echoCancellation: true,
@@ -391,6 +439,9 @@ export class LiveSessionClient {
       })
       .catch((error: unknown) => {
         console.warn('[livekit] failed to connect to room:', error)
+        this.mediaConnected = false
+        this.mediaError =
+          error instanceof Error ? error.message : 'LiveKit audio connection failed'
         this.lkRoom = null
         this.emitMediaState()
         throw error
@@ -431,6 +482,9 @@ export class LiveSessionClient {
   private buildMediaState(): LiveMediaState {
     return {
       provider: this.mediaProvider,
+      connected:
+        this.mediaProvider === 'websocket_fallback' || this.mediaConnected,
+      error: this.mediaError,
       microphoneMuted: this.microphoneMuted,
       activeSpeakerIds: [...this.activeSpeakerIds],
       participants: [...this.mediaParticipants.values()],
@@ -523,8 +577,6 @@ export class LiveSessionClient {
       this.lastSequence =
         this.lastSequence === null ? seq : Math.max(this.lastSequence, seq)
     }
-    if (event.turn_id) this.latestActiveTurnId = String(event.turn_id)
-
     this.emitToSubscribers('onEvent', event)
 
     switch (event.type) {
@@ -561,6 +613,11 @@ export class LiveSessionClient {
         return
       }
 
+      case 'speaker.selected': {
+        this.latestActiveTurnId = event.turn_id ? String(event.turn_id) : null
+        return
+      }
+
       case 'agent.text.delta': {
         const text = String(event.text || '')
         if (this.turn) {
@@ -572,6 +629,7 @@ export class LiveSessionClient {
           'onTextDelta',
           text,
           event.agent_id ? String(event.agent_id) : undefined,
+          event.turn_id ? String(event.turn_id) : undefined,
         )
         return
       }
@@ -607,6 +665,7 @@ export class LiveSessionClient {
 
       case 'agent.turn.failed':
       case 'error':
+        if (event.type === 'agent.turn.failed') this.latestActiveTurnId = null
         this.failOpenTurn(
           new Error(String(event.message || event.code || 'Live room error')),
         )

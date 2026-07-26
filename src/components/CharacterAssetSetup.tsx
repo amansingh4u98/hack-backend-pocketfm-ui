@@ -202,7 +202,7 @@ export function CharacterAssetSetup({
     <section className="col-span-full min-w-0 overflow-hidden rounded-2xl border border-line bg-ink-soft p-4 sm:p-6">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ember">
-          Character assets
+          {character.id === 'director' ? 'Director setup' : 'Character assets'}
         </p>
         <h2 className="font-display text-2xl text-parchment">
           Set up {character.name}

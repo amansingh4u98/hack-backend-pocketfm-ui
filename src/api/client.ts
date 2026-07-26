@@ -167,6 +167,8 @@ export async function getStory(storyId: string): Promise<IngestStoryResult> {
     bootstrapRequestId: response.request_id,
     logline: extraction.story.logline || undefined,
     shortSynopsis: extraction.story.short_synopsis || undefined,
+    directorVoiceId: response.voice_assignments.director?.voice_id,
+    directorVoiceName: response.voice_assignments.director?.name || undefined,
     extraction,
     ingestMode: 'live',
   }
@@ -307,6 +309,7 @@ export async function startCall(input: {
   character: Character
   cast: Character[]
   participants: SessionParticipant[]
+  focusId?: string
   asOfScene?: number
 }): Promise<StartCallResult> {
   const extraction = input.story.extraction
@@ -333,8 +336,12 @@ export async function startCall(input: {
         body: JSON.stringify({
           extraction,
           character_ids: selectedIds,
+          focus_character_id: input.focusId || 'director',
           writer_id: input.story.writerId || WRITER_ID,
-          request_id: input.story.bootstrapRequestId || crypto.randomUUID(),
+          // Every call-room needs a fresh idempotency key. Reusing the story
+          // extraction request ID recreates the same LiveKit identities and
+          // disconnects participants with DuplicateIdentity.
+          request_id: crypto.randomUUID(),
           capability_token: input.story.capabilityToken,
           as_of_scene: input.asOfScene,
           ...(Object.keys(voiceIds).length ? { voice_ids: voiceIds } : {}),
@@ -343,9 +350,26 @@ export async function startCall(input: {
       },
     )
 
+    const focusedParticipant: Character =
+      input.focusId === 'director'
+        ? {
+            id: 'director',
+            name: 'Director',
+            role: 'Writers’ room facilitator',
+            description:
+              'Facilitates the room and helps the cast and writer develop the story.',
+            voice_id: input.story.directorVoiceId,
+            voice_name: input.story.directorVoiceName || 'Server default voice',
+            avatar_color: '#047857',
+          }
+        : input.character
+
     return {
-      character: input.character,
-      greeting: defaultGreeting(input.character.name),
+      character: focusedParticipant,
+      greeting:
+        input.focusId === 'director'
+          ? undefined
+          : defaultGreeting(input.character.name),
       session: {
         roomId: String(res.room_id),
         sessionId: String(res.session_id),
@@ -459,7 +483,9 @@ async function autoAssignCharacterVoices(
     return characters
   }
   const available = voices.filter(
-    (voice) => normalizeVoiceLabel(voice.category) !== 'cloned',
+    (voice) =>
+      normalizeVoiceLabel(voice.category) !== 'cloned' &&
+      voice.voiceId !== story.directorVoiceId,
   )
   if (!available.length) return characters
   const assigned: Character[] = []

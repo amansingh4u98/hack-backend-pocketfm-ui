@@ -48,6 +48,7 @@ interface Caption {
 
 const EMPTY_MEDIA: LiveMediaState = {
   provider: 'pending',
+  connected: false,
   microphoneMuted: true,
   activeSpeakerIds: [],
   participants: [],
@@ -62,6 +63,30 @@ export function CallRoom({
   greeting,
   onFinalStory,
 }: CallRoomProps) {
+  const chatCharacter = useMemo<Character>(() => {
+    const focused = session.participants?.find((participant) => participant.focused)
+    if (focused?.type === 'director') {
+      return {
+        id: 'director',
+        name: 'Director',
+        role: 'Writers’ room facilitator',
+        description:
+          'Facilitates the room and helps the cast and writer develop the story.',
+        voice_id: focused.voiceId || story.directorVoiceId,
+        voice_name: story.directorVoiceName || 'Server default voice',
+        image_url: focused.imageUrl,
+        avatar_color: '#047857',
+      }
+    }
+    if (focused?.characterId || focused?.id) {
+      const focusedId = focused.characterId || focused.id
+      return (
+        selectedCharacters.find((item) => item.id === focusedId) || character
+      )
+    }
+    return character
+  }, [character, selectedCharacters, session.participants, story])
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'room-open',
@@ -77,7 +102,7 @@ export function CallRoom({
           id: 'greeting',
           role: 'character' as const,
           content: greeting,
-          characterName: character.name,
+          characterName: chatCharacter.name,
           timestamp: new Date().toISOString(),
         }]
       : []),
@@ -86,6 +111,9 @@ export function CallRoom({
   const [connection, setConnection] = useState<ConnectionState>('connecting')
   const [media, setMedia] = useState<LiveMediaState>(EMPTY_MEDIA)
   const [micMuted, setMicMuted] = useState(true)
+  const [speechLanguage, setSpeechLanguage] = useState(
+    () => window.localStorage.getItem('off-the-page:speech-language') || 'auto',
+  )
   const [isTyping, setIsTyping] = useState(false)
   const [discussionActive, setDiscussionActive] = useState(false)
   const [activeAgent, setActiveAgent] = useState<string | null>(null)
@@ -97,11 +125,16 @@ export function CallRoom({
   const playerRef = useRef<AudioPlayer | null>(null)
   const captureRef = useRef<AudioCapture | null>(null)
   const activeStreamRef = useRef<string | null>(null)
-  const streamMessageRef = useRef<{ id: string; agentId: string } | null>(null)
+  const speechLanguageRef = useRef(speechLanguage)
+  const streamMessageRef = useRef<{
+    id: string
+    agentId: string
+    turnId?: string
+  } | null>(null)
 
   const nameFor = useCallback(
     (id?: string) => {
-      if (!id) return character.name
+      if (!id) return chatCharacter.name
       if (id.toLowerCase() === 'director') return 'Director'
       return (
         selectedCharacters.find(
@@ -109,7 +142,7 @@ export function CallRoom({
         )?.name || humanize(id)
       )
     },
-    [character.name, selectedCharacters],
+    [chatCharacter.name, selectedCharacters],
   )
 
   const addCaption = useCallback((caption: Caption) => {
@@ -120,7 +153,14 @@ export function CallRoom({
     (event: LiveServerEvent) => {
       const eventId = String(event.event_id || event.turn_id || crypto.randomUUID())
       switch (event.type) {
-        case 'speaker.selected':
+        case 'speaker.selected': {
+          const turnId = event.turn_id ? String(event.turn_id) : undefined
+          if (streamMessageRef.current?.turnId !== turnId) {
+            streamMessageRef.current = null
+          }
+          setActiveAgent(String(event.speaker_id || event.agent_id || ''))
+          break
+        }
         case 'agent.audio.started':
           setActiveAgent(String(event.speaker_id || event.agent_id || ''))
           break
@@ -149,6 +189,12 @@ export function CallRoom({
                   }],
             )
           }
+          break
+        case 'speech.input.failed':
+        case 'agent.turn.failed':
+        case 'error':
+          setError(String(event.message || 'The live room could not process that turn'))
+          setIsTyping(false)
           break
         case 'discussion.started':
           setDiscussionActive(true)
@@ -190,28 +236,43 @@ export function CallRoom({
   )
 
   const handleDelta = useCallback(
-    (text: string, agentId = character.id) => {
+    (text: string, agentId = chatCharacter.id, turnId?: string) => {
       if (!text) return
       setActiveAgent(agentId)
       setIsTyping(true)
       const current = streamMessageRef.current
-      if (!current || current.agentId !== agentId) {
-        const id = crypto.randomUUID()
-        streamMessageRef.current = { id, agentId }
-        setMessages((items) => [...items, {
-          id,
-          role: 'character',
-          content: text,
-          characterName: nameFor(agentId),
-          timestamp: new Date().toISOString(),
-        }])
+      if (
+        !current ||
+        current.agentId !== agentId ||
+        (turnId && current.turnId !== turnId)
+      ) {
+        const id = turnId ? `agent-turn-${turnId}` : crypto.randomUUID()
+        streamMessageRef.current = { id, agentId, turnId }
+        setMessages((items) =>
+          items.some((item) => item.id === id)
+            ? items.map((item) =>
+                item.id === id
+                  ? { ...item, content: item.content + text }
+                  : item,
+              )
+            : [
+                ...items,
+                {
+                  id,
+                  role: 'character',
+                  content: text,
+                  characterName: nameFor(agentId),
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+        )
       } else {
         setMessages((items) =>
           items.map((item) => item.id === current.id ? { ...item, content: item.content + text } : item),
         )
       }
       setCaptions((current) => {
-        const id = `agent-${agentId}`
+        const id = `agent-${turnId || agentId}`
         const previous = current.find((item) => item.id === id)?.text || ''
         return [
           ...current.filter((item) => item.id !== id),
@@ -219,7 +280,7 @@ export function CallRoom({
         ].slice(-8)
       })
     },
-    [character.id, nameFor],
+    [chatCharacter.id, nameFor],
   )
 
   useEffect(() => {
@@ -237,6 +298,9 @@ export function CallRoom({
     void openLiveSession(session)
       .then((client) => {
         if (!client || cancelled) return
+        client.setSpeechLanguage(
+          speechLanguageRef.current === 'auto' ? null : speechLanguageRef.current,
+        )
         unsubscribe = client.subscribe({
           onAudio: (frame) => player.play(frame),
           onEvent: handleEvent,
@@ -245,6 +309,7 @@ export function CallRoom({
           onMediaState: (state) => {
             setMedia(state)
             setMicMuted(state.microphoneMuted)
+            if (state.error) setError(state.error)
           },
         })
       })
@@ -303,7 +368,7 @@ export function CallRoom({
       }
 
       playerRef.current?.stop()
-      client.interrupt()
+      await client.startAudioPlayback()
       const provider = await client.setMicrophoneEnabled(true)
       if (provider === 'websocket_fallback') {
         const turnId = crypto.randomUUID()
@@ -329,15 +394,22 @@ export function CallRoom({
     }])
     streamMessageRef.current = null
     setIsTyping(true)
+    setError(null)
     playerRef.current?.stop()
     try {
-      const result = await sendChatTurn({ session, character, message: text })
+      const client = getLiveClient(session.sessionId)
+      await client?.startAudioPlayback()
+      const result = await sendChatTurn({
+        session,
+        character: chatCharacter,
+        message: text,
+      })
       if (session.mode === 'offline') {
         setMessages((items) => [...items, {
           id: crypto.randomUUID(),
           role: 'character',
           content: result.reply,
-          characterName: result.character_name || character.name,
+          characterName: result.character_name || chatCharacter.name,
           timestamp: new Date().toISOString(),
         }])
       }
@@ -347,7 +419,11 @@ export function CallRoom({
       streamMessageRef.current = null
       setIsTyping(false)
     }
-  }, [character, session])
+  }, [chatCharacter, session])
+
+  const writerSpeaking = media.activeSpeakerIds.includes(
+    session.writerId || 'writer',
+  )
 
   const toggleDiscussion = useCallback(() => {
     const client = getLiveClient(session.sessionId)
@@ -398,7 +474,15 @@ export function CallRoom({
           <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/50">
             <span className={`h-1.5 w-1.5 rounded-full ${connection === 'open' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
             {connection === 'open' ? 'Live writers’ room' : connection}
-            <span>· {media.provider === 'livekit' ? 'LiveKit audio' : media.provider === 'websocket_fallback' ? 'WebSocket audio' : 'joining audio'}</span>
+            <span>
+              · {media.provider === 'livekit'
+                ? media.connected
+                  ? 'LiveKit audio ready'
+                  : 'connecting LiveKit audio'
+                : media.provider === 'websocket_fallback'
+                  ? 'WebSocket audio ready'
+                  : 'joining audio'}
+            </span>
           </p>
         </div>
         <button type="button" onClick={() => void finishRoom()} className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold hover:bg-red-500">
@@ -440,6 +524,40 @@ export function CallRoom({
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
             <ControlButton onClick={() => void toggleMicrophone()} active={!micMuted} label={micMuted ? 'Unmute' : 'Mute'} icon={micMuted ? <MicOff size={19} /> : <Mic size={19} />} />
+            <select
+              aria-label="Spoken language"
+              value={speechLanguage}
+              disabled={!micMuted}
+              onChange={(event) => {
+                const language = event.target.value
+                speechLanguageRef.current = language
+                setSpeechLanguage(language)
+                window.localStorage.setItem('off-the-page:speech-language', language)
+                getLiveClient(session.sessionId)?.setSpeechLanguage(
+                  language === 'auto' ? null : language,
+                )
+              }}
+              className="h-[58px] rounded-xl border border-white/10 bg-[#2b2b2b] px-3 text-xs text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              title={micMuted ? 'Choose the language you will speak' : 'Mute before changing language'}
+            >
+              <option value="auto">Auto language</option>
+              <option value="hi">Hindi / Hinglish</option>
+              <option value="en">English</option>
+              <option value="bn">Bengali</option>
+              <option value="mr">Marathi</option>
+              <option value="ta">Tamil</option>
+              <option value="te">Telugu</option>
+              <option value="pa">Punjabi</option>
+              <option value="ur">Urdu</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="ar">Arabic</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="zh">Chinese</option>
+            </select>
             <ControlButton
               onClick={toggleDiscussion}
               active={discussionActive}
@@ -449,11 +567,18 @@ export function CallRoom({
             />
             <ControlButton onClick={() => getLiveClient(session.sessionId)?.interrupt()} label="Interrupt" icon={<Zap size={19} />} />
           </div>
+          <p className={`mt-2 text-center text-[11px] ${writerSpeaking ? 'text-emerald-300' : 'text-white/50'}`}>
+            {micMuted
+              ? 'Microphone muted — click Unmute to speak'
+              : writerSpeaking
+                ? 'Voice detected — your microphone is reaching the room'
+                : 'Microphone live — listening for your voice'}
+          </p>
         </section>
 
         <aside className="min-h-[360px] border-l border-white/10 bg-[#fdfbf7] text-parchment">
           <ChatWindow
-            character={character}
+            character={chatCharacter}
             messages={messages}
             isTyping={isTyping}
             onSend={(text) => void handleSend(text)}
@@ -501,7 +626,10 @@ function ParticipantTile({
   muted?: boolean
 }) {
   const liveParticipant = media.participants.find((item) => item.id === participant.id)
-  const connected = connection === 'open' && (participant.type !== 'writer' || liveParticipant?.connected !== false)
+  const connected =
+    connection === 'open' &&
+    media.connected &&
+    (participant.type !== 'writer' || liveParticipant?.connected === true)
   const isMuted = muted ?? liveParticipant?.isMuted ?? !speaking
   const imageUrl = participant.type === 'writer' ? undefined : ('imageUrl' in participant ? participant.imageUrl : undefined) || character?.image_url
   return (
@@ -512,7 +640,13 @@ function ParticipantTile({
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/90 to-transparent px-3 pb-3 pt-8">
-        <span className="truncate text-xs font-semibold">{participant.name}{participant.type === 'director' ? ' · Director' : ''}</span>
+        <span className="truncate text-xs font-semibold">
+          {participant.name}
+          {participant.type === 'director' &&
+          participant.name.toLowerCase() !== 'director'
+            ? ' · Director'
+            : ''}
+        </span>
         <span className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-amber-400'}`} title={connected ? 'Connected' : 'Connecting'} />
           {isMuted ? <MicOff size={14} className="text-red-300" /> : speaking ? <span className="flex h-4 items-end gap-0.5">{[2, 4, 3].map((height, index) => <i key={index} className="w-0.5 animate-pulse rounded bg-emerald-400" style={{ height: `${height * 3}px` }} />)}</span> : <Mic size={14} className="text-white/45" />}

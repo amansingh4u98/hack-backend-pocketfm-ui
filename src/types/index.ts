@@ -20,6 +20,8 @@ export interface StoryContext {
   capabilityToken?: string
   writerId?: string
   bootstrapRequestId?: string
+  directorVoiceId?: string
+  directorVoiceName?: string
 }
 
 /** UI-facing cast card (mapped from extraction / CharacterBrief / roster) */
@@ -240,6 +242,12 @@ export type LiveClientEvent =
       participant_ids: string[]
       max_agent_turns: number
     }
+  | {
+      schema_version: '1.0'
+      event_id: string
+      type: 'writer.language.set'
+      language_code: string | null
+    }
   | { schema_version: '1.0'; event_id: string; type: 'discussion.stop' }
   | { schema_version: '1.0'; event_id: string; type: 'session.ticket.refresh' }
   | { schema_version: '1.0'; event_id: string; type: 'story.finalization.request' }
@@ -260,6 +268,7 @@ export type LiveClientEvent =
       stream_id: string
       audio_format: string
       sample_rate_hz: number
+      language_code?: string
     }
   | {
       schema_version: '1.0'

@@ -39,12 +39,17 @@ export function CharacterSelect({
   onStartCall,
 }: CharacterSelectProps) {
   const [cast, setCast] = useState(characters)
+  const [director, setDirector] = useState<Character>({
+    id: 'director',
+    name: 'Director',
+    role: 'Writers’ room facilitator',
+    voice_id: story.directorVoiceId,
+    voice_name: story.directorVoiceName || 'Server default voice',
+  })
   const [selectedIds, setSelectedIds] = useState(
     () => new Set(characters.map((character) => character.id)),
   )
-  const [focusedId, setFocusedId] = useState<string | undefined>(
-    characters[0]?.id,
-  )
+  const [focusedId, setFocusedId] = useState('director')
   const [assetCharacterId, setAssetCharacterId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +63,11 @@ export function CharacterSelect({
     selectedCast.find((character) => character.id === focusedId) ||
     selectedCast[0] ||
     null
-  const assetCharacter = cast.find((character) => character.id === assetCharacterId)
+  const directorFocused = focusedId === 'director'
+  const assetCharacter =
+    assetCharacterId === 'director'
+      ? director
+      : cast.find((character) => character.id === assetCharacterId)
 
   function toggleCharacter(character: Character) {
     setSelectedIds((current) => {
@@ -66,11 +75,10 @@ export function CharacterSelect({
       if (next.has(character.id)) {
         next.delete(character.id)
         if (focusedId === character.id) {
-          setFocusedId(cast.find((item) => next.has(item.id))?.id)
+          setFocusedId('director')
         }
       } else {
         next.add(character.id)
-        setFocusedId((focused) => focused || character.id)
       }
       return next
     })
@@ -98,7 +106,14 @@ export function CharacterSelect({
     setLoading(true)
     setError(null)
     const participants: SessionParticipant[] = [
-      { id: 'director', name: 'Director', type: 'director' },
+      {
+        id: 'director',
+        name: 'Director',
+        type: 'director',
+        focused: directorFocused,
+        voiceId: director.voice_id,
+        imageUrl: director.image_url,
+      },
       ...selectedCast.map((character) => ({
         id: character.id,
         characterId: character.id,
@@ -106,7 +121,7 @@ export function CharacterSelect({
         type: 'character' as const,
         voiceId: character.voice_id,
         imageUrl: character.image_url,
-        focused: character.id === focusedCharacter.id,
+        focused: character.id === focusedId,
       })),
     ]
     try {
@@ -115,6 +130,7 @@ export function CharacterSelect({
         character: focusedCharacter,
         cast: selectedCast,
         participants,
+        focusId: focusedId,
         asOfScene,
       })
       onStartCall(res.character, res.session, res.greeting, selectedCast)
@@ -136,9 +152,8 @@ export function CharacterSelect({
             Build your room
           </h1>
           <p className="mt-2 text-sm text-mist">
-            Select any number of characters, configure their assets, and choose one
-            focused character for the current call-room layout. The Director is always
-            present.
+            Select your cast and choose who receives general questions first. The
+            Director is always present and is the default speaker.
           </p>
           {summary && (
             <p className="mt-3 flex items-start gap-2 rounded-xl border border-line bg-ink-soft/50 px-3 py-2 text-xs text-mist">
@@ -184,11 +199,38 @@ export function CharacterSelect({
               Facilitates the room, routes the conversation, and keeps participants
               grounded in your story.
             </p>
+            <p className="mt-3 text-[11px] text-mist">
+              Voice: {director.voice_name || 'Server default voice'}
+            </p>
+            <div className="relative mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setAssetCharacterId((current) =>
+                    current === 'director' ? null : 'director',
+                  )
+                }
+                className="flex items-center gap-1.5 rounded-full border border-line bg-ink px-3 py-1.5 text-xs text-parchment hover:border-ember"
+              >
+                <Settings2 size={13} /> Voice & assets
+              </button>
+              <button
+                type="button"
+                onClick={() => setFocusedId('director')}
+                className={`rounded-full px-3 py-1.5 text-xs ${
+                  directorFocused
+                    ? 'bg-ember text-white'
+                    : 'border border-line bg-ink text-mist hover:border-ember'
+                }`}
+              >
+                {directorFocused ? 'Default speaker' : 'Start with Director'}
+              </button>
+            </div>
           </article>
 
           {cast.map((character, index) => {
             const selected = selectedIds.has(character.id)
-            const focused = focusedCharacter?.id === character.id
+            const focused = focusedId === character.id
             return (
               <article
                 key={character.id}
@@ -268,7 +310,7 @@ export function CharacterSelect({
                           : 'border border-line bg-ink text-mist hover:border-ember'
                       }`}
                     >
-                      {focused ? 'Focused' : 'Use as focus'}
+                      {focused ? 'Default speaker' : `Start with ${character.name}`}
                     </button>
                   )}
                 </div>
@@ -281,7 +323,24 @@ export function CharacterSelect({
               key={assetCharacter.id}
               story={story}
               character={assetCharacter}
-              onUpdate={(update) => updateCharacter(assetCharacter.id, update)}
+              onUpdate={(update) => {
+                if (assetCharacter.id === 'director') {
+                  setDirector((current) => ({
+                    ...current,
+                    ...(update.imageUrl !== undefined
+                      ? { image_url: update.imageUrl }
+                      : {}),
+                    ...(update.voiceId !== undefined
+                      ? { voice_id: update.voiceId }
+                      : {}),
+                    ...(update.voiceName !== undefined
+                      ? { voice_name: update.voiceName || 'Server default voice' }
+                      : {}),
+                  }))
+                  return
+                }
+                updateCharacter(assetCharacter.id, update)
+              }}
             />
           )}
 
@@ -303,13 +362,15 @@ export function CharacterSelect({
 
         <div className="mt-12 flex items-center justify-between gap-4 border-t border-line/50 pt-8">
           <p className="text-xs text-mist">
-            {focusedCharacter
-              ? `${focusedCharacter.name} is the focused legacy CallRoom participant.`
+            {selectedCast.length
+              ? `${
+                  directorFocused ? 'Director' : focusedCharacter?.name
+                } receives unaddressed questions first.`
               : 'Select at least one character.'}
           </p>
           <button
             type="button"
-            disabled={!focusedCharacter || loading}
+            disabled={!selectedCast.length || loading}
             onClick={() => void joinCall()}
             className="inline-flex items-center gap-2 rounded-full bg-parchment px-8 py-3 text-sm font-medium text-ink transition enabled:hover:bg-parchment-dim disabled:cursor-not-allowed disabled:opacity-40"
           >
