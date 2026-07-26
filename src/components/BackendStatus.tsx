@@ -22,10 +22,10 @@ export function BackendStatus({ className = '' }: { className?: string }) {
 
   const label =
     state === 'checking'
-      ? 'API…'
+      ? 'Connecting…'
       : state === 'up'
-        ? 'API live'
-        : 'API offline'
+        ? 'Ready'
+        : 'Unavailable'
 
   const color =
     state === 'up'
@@ -39,8 +39,8 @@ export function BackendStatus({ className = '' }: { className?: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider ${color} ${className}`}
       title={
         state === 'up'
-          ? 'GET /health ok — /v1 routes may still be incomplete'
-          : 'Cannot reach FastAPI on :8000 (demo mode still works)'
+          ? 'Your writers’ room is ready'
+          : 'The service is temporarily unavailable'
       }
     >
       <span

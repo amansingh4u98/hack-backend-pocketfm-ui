@@ -130,7 +130,7 @@ export function extractCharactersLocally(text: string): {
         name: 'Protagonist',
         role: 'Lead',
         description:
-          'Primary voice of the story (auto-detected offline). Connect FastAPI for smarter extraction.',
+          'Primary voice of the story, identified from the supplied draft.',
         avatar_color: colors[0],
       },
       {

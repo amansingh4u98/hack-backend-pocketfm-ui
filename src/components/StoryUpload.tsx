@@ -99,11 +99,9 @@ export function StoryUpload({ onReady }: StoryUploadProps) {
               Lay the story on the table
             </h1>
             <p className="mt-4 text-sm leading-loose text-mist">
-              Paste a draft or drop PDF / DOC / TXT. Text is read in the
-              browser, then sent to{' '}
-              <code className="text-ember font-semibold">POST /actor-context/extract</code>{' '}
-              for story + character intelligence. If the API is down, we fall
-              back to a local cast so you can still demo the UI.
+              Paste a draft or upload a PDF, DOC, or TXT file. We’ll analyze the
+              story, discover its characters, and prepare them for your writers’
+              room.
             </p>
           </div>
 

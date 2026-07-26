@@ -1,5 +1,5 @@
 /** UI flow steps */
-export type AppStep = 'landing' | 'upload' | 'characters' | 'call'
+export type AppStep = 'landing' | 'upload' | 'characters' | 'call' | 'final-story'
 
 export type StorySource = 'paste' | 'pdf' | 'doc' | 'txt'
 
@@ -16,6 +16,10 @@ export interface StoryContext {
   /** Full backend StoryExtraction — needed for room bootstrap */
   extraction?: StoryExtraction
   ingestMode?: 'live' | 'offline'
+  /** Anonymous story-scoped authority returned after extraction. */
+  capabilityToken?: string
+  writerId?: string
+  bootstrapRequestId?: string
 }
 
 /** UI-facing cast card (mapped from extraction / CharacterBrief / roster) */
@@ -32,6 +36,8 @@ export interface Character {
   knowledge_scope?: string
   avatar_color?: string
   image_url?: string
+  voice_id?: string
+  voice_name?: string
   sample_quotes?: string[]
   secrets_count?: number
 }
@@ -54,6 +60,52 @@ export interface LiveSession {
   /** False when the cast shares voices. Surfaced so the writer is told
    *  before they demo, rather than discovering it on stage. */
   voicesDistinct?: boolean
+  selectedCastIds?: string[]
+  participants?: SessionParticipant[]
+}
+
+export interface SessionParticipant {
+  id: string
+  name: string
+  type: 'director' | 'character'
+  characterId?: string
+  voiceId?: string
+  imageUrl?: string
+  focused?: boolean
+}
+
+export interface FinalStoryDraft {
+  title: string
+  narrative: string
+  change_summary: string[]
+  unresolved_questions: string[]
+}
+
+export interface StoryArtifact {
+  artifact_id: string
+  draft: FinalStoryDraft
+  download_url: string
+}
+
+export interface FinalizationProposal {
+  proposal_id: string
+  summary: string
+  rationale: string
+}
+
+export interface Voice {
+  voiceId: string
+  name: string
+  category?: string
+  description?: string
+  previewUrl?: string
+  labels?: Record<string, string>
+}
+
+export interface CharacterAssetUpdate {
+  imageUrl?: string
+  voiceId?: string
+  voiceName?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +120,11 @@ export interface ExtractionCharacter {
   role?: string
   importance?: string
   description?: string | null
+  demographics?: {
+    age?: number | null
+    age_range?: string | null
+    gender?: string | null
+  } | null
   personality?: {
     summary?: string | null
     traits?: string[]
@@ -79,6 +136,7 @@ export interface ExtractionCharacter {
   voice_and_dialogue?: {
     summary?: string | null
     sentence_style?: string | null
+    accent_or_dialect?: string | null
     sample_quotes?: Array<{ text?: string } | string>
   } | null
   secrets?: Array<{ summary?: string }>
@@ -89,6 +147,12 @@ export interface ExtractionCharacter {
 export interface StoryExtraction {
   schema_version: string
   extraction_id: string
+  /** Story-scoped asset authorization, when supplied by the backend. */
+  capability_token?: string
+  story_capability_token?: string
+  writer_id?: string
+  request_id?: string
+  capability_token_expires_in_seconds?: number
   story: {
     id?: string
     title?: string
@@ -99,6 +163,16 @@ export interface StoryExtraction {
   }
   characters: ExtractionCharacter[]
   extraction_metadata?: Record<string, unknown>
+}
+
+export interface StorySummary {
+  id: string
+  extraction_id: string
+  title: string
+  logline: string
+  short_synopsis: string
+  character_count: number
+  updated_at: string
 }
 
 export interface ExtractRequestBody {
@@ -116,6 +190,7 @@ export interface StudioStartSessionRequest {
   writer_id?: string
   request_id?: string
   voice_ids?: Record<string, string>
+  participants?: SessionParticipant[]
 }
 
 export interface StudioStartSessionResponse {
@@ -162,10 +237,20 @@ export type LiveClientEvent =
       schema_version: '1.0'
       event_id: string
       type: 'discussion.start'
-      character_ids: string[]
+      participant_ids: string[]
       max_agent_turns: number
     }
   | { schema_version: '1.0'; event_id: string; type: 'discussion.stop' }
+  | { schema_version: '1.0'; event_id: string; type: 'session.ticket.refresh' }
+  | { schema_version: '1.0'; event_id: string; type: 'story.finalization.request' }
+  | {
+      schema_version: '1.0'
+      event_id: string
+      type: 'story.finalization.respond'
+      proposal_id: string
+      decision: 'confirm' | 'revise' | 'reject'
+      revision_notes?: string
+    }
   | { schema_version: '1.0'; event_id: string; type: 'session.leave' }
   | {
       schema_version: '1.0'

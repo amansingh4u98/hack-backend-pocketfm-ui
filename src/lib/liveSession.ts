@@ -1,4 +1,5 @@
 import type { LiveClientEvent, LiveServerEvent } from '../types'
+import { Room, RoomEvent, Track } from 'livekit-client'
 
 /**
  * One WebSocket per call, not per turn.
@@ -63,6 +64,27 @@ interface Handlers {
   onAudio?: (frame: AudioFrame) => void
   onStateChange?: (state: ConnectionState) => void
   onTextDelta?: (text: string, agentId?: string) => void
+  onMediaState?: (state: LiveMediaState) => void
+}
+
+export type MediaProvider = 'livekit' | 'websocket_fallback' | 'pending'
+
+export interface LiveParticipantState {
+  id: string
+  name: string
+  connected: boolean
+  isLocal: boolean
+  isSpeaking: boolean
+  isMuted: boolean
+  hasAudioTrack: boolean
+}
+
+export interface LiveMediaState {
+  provider: MediaProvider
+  microphoneMuted: boolean
+  activeSpeakerIds: string[]
+  participants: LiveParticipantState[]
+  trackIds: string[]
 }
 
 interface OpenTurn {
@@ -107,18 +129,44 @@ export class LiveSessionClient {
   private joinWaiters: Array<() => void> = []
   private outbox: LiveClientEvent[] = []
   private turn: OpenTurn | null = null
-  private lkRoom: import('livekit-client').Room | null = null
+  private latestActiveTurnId: string | null = null
+  private lkRoom: Room | null = null
+  private lkConnectPromise: Promise<void> | null = null
+  private mediaProvider: MediaProvider = 'pending'
+  private microphoneMuted = true
+  private activeSpeakerIds: string[] = []
+  private mediaParticipants = new Map<string, LiveParticipantState>()
+  private trackIds = new Set<string>()
+  private attachedAudio = new Map<string, HTMLMediaElement>()
+  private ticketRefreshTimer: number | null = null
+  private readonly subscribers = new Set<Handlers>()
 
   private readonly config: SessionConfig
-  private readonly handlers: Handlers
-
-  constructor(config: SessionConfig, handlers: Handlers = {}) {
+  constructor(config: SessionConfig) {
     this.config = config
-    this.handlers = handlers
   }
 
   get connectionState(): ConnectionState {
     return this.state
+  }
+
+  get token(): string {
+    return this.config.token
+  }
+
+  get mediaState(): LiveMediaState {
+    return this.buildMediaState()
+  }
+
+  get usesWebSocketAudioFallback(): boolean {
+    return this.mediaProvider === 'websocket_fallback'
+  }
+
+  subscribe(handlers: Handlers): () => void {
+    this.subscribers.add(handlers)
+    handlers.onStateChange?.(this.state)
+    handlers.onMediaState?.(this.buildMediaState())
+    return () => this.subscribers.delete(handlers)
   }
 
   async connect(): Promise<void> {
@@ -156,7 +204,7 @@ export class LiveSessionClient {
 
   /** Barge-in on the turn currently streaming. */
   interrupt(turnId?: string): void {
-    const target = turnId ?? this.turn?.turnId
+    const target = turnId ?? this.turn?.turnId ?? this.latestActiveTurnId
     if (!target) return
     this.send({
       schema_version: '1.0',
@@ -171,7 +219,7 @@ export class LiveSessionClient {
       schema_version: '1.0',
       event_id: crypto.randomUUID(),
       type: 'discussion.start',
-      character_ids: characterIds,
+      participant_ids: characterIds,
       max_agent_turns: maxAgentTurns,
     })
   }
@@ -182,6 +230,46 @@ export class LiveSessionClient {
       event_id: crypto.randomUUID(),
       type: 'discussion.stop',
     })
+  }
+
+  requestFinalization(): void {
+    this.send({
+      schema_version: '1.0',
+      event_id: crypto.randomUUID(),
+      type: 'story.finalization.request',
+    })
+  }
+
+  respondToFinalization(
+    proposalId: string,
+    decision: 'confirm' | 'revise' | 'reject',
+    revisionNotes?: string,
+  ): void {
+    this.send({
+      schema_version: '1.0',
+      event_id: crypto.randomUUID(),
+      type: 'story.finalization.respond',
+      proposal_id: proposalId,
+      decision,
+      ...(revisionNotes?.trim() ? { revision_notes: revisionNotes.trim() } : {}),
+    })
+  }
+
+  async setMicrophoneEnabled(enabled: boolean): Promise<MediaProvider> {
+    this.microphoneMuted = !enabled
+    if (this.mediaProvider === 'livekit') {
+      await this.lkConnectPromise
+      if (!this.lkRoom) throw new Error('LiveKit room is unavailable')
+      await this.lkRoom.localParticipant.setMicrophoneEnabled(enabled, {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      })
+      this.syncLiveKitState()
+    } else {
+      this.emitMediaState()
+    }
+    return this.mediaProvider
   }
 
   sendAudioStart(turnId: string, streamId: string): void {
@@ -217,6 +305,7 @@ export class LiveSessionClient {
   close(): void {
     this.closing = true
     this.clearPing()
+    this.clearTicketRefresh()
     this.failOpenTurn(new Error('Session closed'))
     const socket = this.socket
     this.socket = null
@@ -225,6 +314,8 @@ export class LiveSessionClient {
       this.lkRoom.disconnect()
       this.lkRoom = null
     }
+    for (const element of this.attachedAudio.values()) element.remove()
+    this.attachedAudio.clear()
 
     if (socket && socket.readyState === WebSocket.OPEN) {
       try {
@@ -248,6 +339,138 @@ export class LiveSessionClient {
   }
 
   // ---------------------------------------------------------------- internals
+
+  private connectLiveKit(url: string, token: string): void {
+    if (this.lkRoom || this.lkConnectPromise) return
+    const room = new Room()
+    this.lkRoom = room
+
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === Track.Kind.Audio) {
+        const element = track.attach()
+        element.autoplay = true
+        element.style.display = 'none'
+        document.body.appendChild(element)
+        if (track.sid) this.attachedAudio.set(track.sid, element)
+      }
+      this.syncLiveKitState()
+    })
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      const element = track.sid ? this.attachedAudio.get(track.sid) : undefined
+      if (element) {
+        track.detach(element)
+        element.remove()
+        if (track.sid) this.attachedAudio.delete(track.sid)
+      }
+      this.syncLiveKitState()
+    })
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      this.activeSpeakerIds = speakers.map((speaker) =>
+        normalizeParticipantIdentity(speaker.identity),
+      )
+      this.syncLiveKitState()
+    })
+    room.on(RoomEvent.ParticipantConnected, () => this.syncLiveKitState())
+    room.on(RoomEvent.ParticipantDisconnected, () => this.syncLiveKitState())
+    room.on(RoomEvent.TrackPublished, () => this.syncLiveKitState())
+    room.on(RoomEvent.TrackUnpublished, () => this.syncLiveKitState())
+    room.on(RoomEvent.LocalTrackPublished, () => this.syncLiveKitState())
+    room.on(RoomEvent.LocalTrackUnpublished, () => this.syncLiveKitState())
+
+    this.lkConnectPromise = room
+      .connect(url, token)
+      .then(async () => {
+        if (!this.microphoneMuted) {
+          await room.localParticipant.setMicrophoneEnabled(true, {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          })
+        }
+        this.syncLiveKitState()
+      })
+      .catch((error: unknown) => {
+        console.warn('[livekit] failed to connect to room:', error)
+        this.lkRoom = null
+        this.emitMediaState()
+        throw error
+      })
+  }
+
+  private syncLiveKitState(): void {
+    const room = this.lkRoom
+    if (!room) return
+    const participants = [room.localParticipant, ...room.remoteParticipants.values()]
+    this.mediaParticipants.clear()
+    this.trackIds.clear()
+
+    for (const participant of participants) {
+      const id = normalizeParticipantIdentity(participant.identity)
+      const publications = [...participant.trackPublications.values()].filter(
+        (publication) => publication.kind === Track.Kind.Audio,
+      )
+      for (const publication of publications) {
+        if (publication.trackSid) this.trackIds.add(publication.trackSid)
+      }
+      this.mediaParticipants.set(id, {
+        id,
+        name: participant.name || humanizeIdentity(id),
+        connected: true,
+        isLocal: participant === room.localParticipant,
+        isSpeaking: this.activeSpeakerIds.includes(id) || participant.isSpeaking,
+        isMuted:
+          participant === room.localParticipant
+            ? this.microphoneMuted
+            : publications.length === 0 || publications.every((publication) => publication.isMuted),
+        hasAudioTrack: publications.length > 0,
+      })
+    }
+    this.emitMediaState()
+  }
+
+  private buildMediaState(): LiveMediaState {
+    return {
+      provider: this.mediaProvider,
+      microphoneMuted: this.microphoneMuted,
+      activeSpeakerIds: [...this.activeSpeakerIds],
+      participants: [...this.mediaParticipants.values()],
+      trackIds: [...this.trackIds],
+    }
+  }
+
+  private emitMediaState(): void {
+    this.emitToSubscribers('onMediaState', this.buildMediaState())
+  }
+
+  private emitToSubscribers(key: keyof Handlers, ...args: unknown[]): void {
+    for (const subscriber of this.subscribers) {
+      const callback = subscriber[key] as
+        | ((...callbackArgs: unknown[]) => void)
+        | undefined
+      callback?.(...args)
+    }
+  }
+
+  private scheduleTicketRefresh(expiresInSeconds: number): void {
+    this.clearTicketRefresh()
+    const safeTtl = Number.isFinite(expiresInSeconds) ? expiresInSeconds : 300
+    const refreshInMs = Math.max(10_000, (safeTtl - Math.min(60, safeTtl / 4)) * 1000)
+    this.ticketRefreshTimer = window.setTimeout(() => {
+      if (this.closing) return
+      this.send({
+        schema_version: '1.0',
+        event_id: crypto.randomUUID(),
+        type: 'session.ticket.refresh',
+      })
+    }, refreshInMs)
+  }
+
+  private clearTicketRefresh(): void {
+    if (this.ticketRefreshTimer !== null) {
+      window.clearTimeout(this.ticketRefreshTimer)
+      this.ticketRefreshTimer = null
+    }
+  }
 
   private openSocket(): void {
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
@@ -282,7 +505,7 @@ export class LiveSessionClient {
   private handleMessage(ev: MessageEvent): void {
     if (ev.data instanceof ArrayBuffer) {
       const frame = decodeAudioFrame(ev.data)
-      if (frame) this.handlers.onAudio?.(frame)
+      if (frame) this.emitToSubscribers('onAudio', frame)
       return
     }
     if (typeof ev.data !== 'string') return
@@ -300,45 +523,41 @@ export class LiveSessionClient {
       this.lastSequence =
         this.lastSequence === null ? seq : Math.max(this.lastSequence, seq)
     }
+    if (event.turn_id) this.latestActiveTurnId = String(event.turn_id)
 
-    this.handlers.onEvent?.(event)
+    this.emitToSubscribers('onEvent', event)
 
     switch (event.type) {
       case 'session.joined': {
         this.joined = true
         this.flushOutbox()
         this.joinWaiters.splice(0).forEach((resolve) => resolve())
-        
-        const media = event.media as Record<string, unknown> | undefined
-        if (media?.provider === 'livekit' && typeof media.url === 'string' && typeof media.token === 'string') {
-          // Lazy import livekit-client to avoid loading it if not needed, or just require it at the top
-          // For simplicity here, we'll instantiate it dynamically if possible, or just statically import
-          import('livekit-client').then(({ Room, RoomEvent }) => {
-            const lkRoom = new Room()
-            this.lkRoom = lkRoom
-            lkRoom.on(RoomEvent.TrackSubscribed, (track) => {
-              if (track.kind === 'audio') {
-                const element = track.attach()
-                // Append to body to ensure it plays, though livekit usually handles it
-                element.style.display = 'none'
-                document.body.appendChild(element)
-                // Store element on the track object for cleanup later
-                ;(track as any)._attachedElement = element
-              }
-            })
-            lkRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
-              const element = (track as any)._attachedElement
-              if (element) {
-                track.detach(element)
-                element.remove()
-              }
-            })
-            lkRoom.connect(media.url as string, media.token as string).catch((err) => {
-              console.warn('[livekit] failed to connect to room:', err)
-            })
-          }).catch(err => console.error('Failed to load livekit-client', err))
-        }
 
+        const media = event.media as Record<string, unknown> | undefined
+        this.mediaProvider =
+          media?.provider === 'livekit' ? 'livekit' : 'websocket_fallback'
+        this.emitMediaState()
+        if (
+          this.mediaProvider === 'livekit' &&
+          typeof media?.url === 'string' &&
+          typeof media.token === 'string'
+        ) {
+          this.connectLiveKit(media.url, media.token)
+        }
+        this.scheduleTicketRefresh(tokenSecondsRemaining(this.config.token))
+
+        return
+      }
+
+      case 'session.ticket.refreshed': {
+        if (typeof event.token === 'string') {
+          this.config.token = event.token
+          this.scheduleTicketRefresh(
+            typeof event.expires_in_seconds === 'number'
+              ? event.expires_in_seconds
+              : tokenSecondsRemaining(event.token),
+          )
+        }
         return
       }
 
@@ -349,7 +568,8 @@ export class LiveSessionClient {
           if (event.agent_id) this.turn.agentId = String(event.agent_id)
           if (event.turn_id) this.turn.turnId = String(event.turn_id)
         }
-        this.handlers.onTextDelta?.(
+        this.emitToSubscribers(
+          'onTextDelta',
           text,
           event.agent_id ? String(event.agent_id) : undefined,
         )
@@ -367,6 +587,7 @@ export class LiveSessionClient {
           agentId: this.turn?.agentId,
           turnId: this.turn?.turnId ?? (event.turn_id as string | undefined),
         })
+        if (event.type === 'agent.turn.completed') this.latestActiveTurnId = null
         return
       }
 
@@ -380,6 +601,7 @@ export class LiveSessionClient {
             turnId: this.turn?.turnId,
           })
         }
+        this.latestActiveTurnId = null
         return
       }
 
@@ -506,8 +728,35 @@ export class LiveSessionClient {
   private setState(next: ConnectionState): void {
     if (this.state === next) return
     this.state = next
-    this.handlers.onStateChange?.(next)
+    this.emitToSubscribers('onStateChange', next)
   }
+}
+
+function tokenSecondsRemaining(token: string): number {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return 300
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const claims = JSON.parse(atob(normalized)) as { exp?: number }
+    return claims.exp ? Math.max(1, claims.exp - Date.now() / 1000) : 300
+  } catch {
+    return 300
+  }
+}
+
+function normalizeParticipantIdentity(identity: string): string {
+  const parts = identity.split(':')
+  if ((parts[0] === 'agent' || parts[0] === 'writer') && parts[1]) return parts[1]
+  return identity
+}
+
+function humanizeIdentity(identity: string): string {
+  if (identity.toLowerCase() === 'director') return 'Director'
+  return identity
+    .replace(/^char_/, '')
+    .split(/[_-]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 /**
